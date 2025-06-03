@@ -16,20 +16,20 @@ export class User {
     @Prop({ required: true })
     password: string;
 
-    // @Prop()
-    // token: string;
+    @Prop({default : null})
+    token: string;
 
-    // @Prop({ default: []})
-    // preferences: string[];
+    @Prop({ default: []})
+    preferences: string[];
 
-    // @Prop({ default: 0 })
-    // leaderboardScore: number;
+    @Prop({ default: 0 })
+    leaderboardScore: number;
 
-    // @Prop({ default: 0 })
-    // level: number;
+    @Prop({ default: 0 })
+    level: number;
 
-    // @Prop({ default: 0 })
-    // xp_points: number;
+    @Prop({ default: 0 })
+    xp_points: number;
 }
 
 export const UserSchema = SchemaFactory.createForClass(User);
