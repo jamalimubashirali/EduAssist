@@ -2,6 +2,7 @@ import {
   ForbiddenException,
   Injectable,
   InternalServerErrorException,
+  NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common';
 import { UsersService } from 'src/users/users.service';
@@ -9,6 +10,8 @@ import { JwtService } from '@nestjs/jwt';
 import { CreateUserDto } from 'src/users/dto/create.user.dto';
 import { User } from 'src/users/schema/user.schema';
 import { TokenData, Tokens } from '../../common/types';
+import { LoginDto } from './dto/LoginDto';
+import * as bcrypt from 'bcrypt';
 
 @Injectable()
 export class AuthService {
@@ -33,27 +36,28 @@ export class AuthService {
     };
   }
 
-  async validateUser(email: string, pass: string): Promise<any> {
+  private async validateUser(email: string, pass: string): Promise<User> {
     const user = await this.usersService.findByEmail(email);
-    if (user && user.password === pass) {
-      const { password, ...result } = user;
-      return result;
-    }
-    throw new UnauthorizedException('Invalid credentials');
+    if (!user) throw new UnauthorizedException('Invalid credentials');
+    const isMatch = await bcrypt.compare(pass , user?.password);
+    if (!isMatch) throw new UnauthorizedException('Invalid credentials');
+    return user;
   }
 
-  async login(user: any): Promise<{
+  async login(loginDto : LoginDto): Promise<{
     tokens: Tokens;
     message: string;
   }> {
-    const payload = { email: user.email, sub: user._id, role: user.role };
+    const user = await this.validateUser(loginDto.email , loginDto.password);
+    const newTokens : Tokens = await this.generateNewTokens({userId : user._id.toString() , email : user.email});
+    user.token = newTokens.refresh_token;
+    await this.usersService.updateUser(user._id.toString() , {
+      token : newTokens.refresh_token
+    });
     return {
-      tokens: {
-        access_token: this.jwtService.sign(payload),
-        refresh_token: this.jwtService.sign(payload, { expiresIn: '7d' }),
-      },
-      message: 'Login successful',
-    };
+      tokens : newTokens,
+      message : "Login Successful"
+    }
   }
 
   private async generateNewTokens(tokenData : TokenData) : Promise<Tokens> {
@@ -79,10 +83,44 @@ export class AuthService {
         }
       )
     ]);
-
     return {
       access_token : access_token,
       refresh_token : refresh_token
     } 
   }
+
+  async logout(_id: string): Promise<Boolean> {
+    const user = await this.usersService.findById(_id);
+    if(!user) {
+      throw new NotFoundException("User NOt Found");
+    }
+    await this.usersService.updateUser(user._id.toString() , {
+      token : ""
+    });
+    return true;
+  }
+
+
+  async refreshTokens(userId: string, refreshToken: string): Promise<Tokens> {
+    const user = await this.usersService.findById(userId);
+    
+    // Verify refresh token matches stored token
+    if (!user.token || user.token !== refreshToken) {
+      throw new UnauthorizedException('Invalid refresh token');
+    }
+
+    // Generate new tokens
+    const tokens = await this.generateNewTokens({
+      userId: user._id.toString(),
+      email: user.email,
+    });
+
+    // Update refresh token in database
+    await this.usersService.updateUser(user._id.toString(), {
+      token: tokens.refresh_token,
+    });
+
+    return tokens;
+  }
 }
+

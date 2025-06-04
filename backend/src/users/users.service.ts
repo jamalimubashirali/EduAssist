@@ -1,7 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { InjectModel } from '@nestjs/mongoose';
+import { InjectModel, IsObjectIdPipe, ParseObjectIdPipe } from '@nestjs/mongoose';
 import { User } from './schema/user.schema';
-import { Model } from 'mongoose';
+import { Model, ObjectId, Types } from 'mongoose';
 import { CreateUserDto } from './dto/create.user.dto';
 import { UpdateUserDto } from './dto/update.user.dto';
 
@@ -14,7 +14,7 @@ export class UsersService {
     }
 
     async findById(id: string): Promise<User> {
-        const user = await this.userModel.findById(id);
+        const user = await this.userModel.findById(new Types.ObjectId(id));
         if (!user) {
             throw new NotFoundException('User not found');
         }
@@ -22,7 +22,11 @@ export class UsersService {
     }
 
     async findByEmail(email: string): Promise<User | null> {
-        return await this.userModel.findOne({ email });
+        const user =  await this.userModel.findOne({ email });
+        if(!user) {
+            throw new NotFoundException("User not Found");
+        }
+        return user;
     }
 
     async createUser(createUserDto: CreateUserDto): Promise<User> {
@@ -32,7 +36,7 @@ export class UsersService {
 
     async updateUser(id: string, updateUserDto: UpdateUserDto): Promise<User> {
         const updatedUser = await this.userModel
-            .findByIdAndUpdate(id, updateUserDto, { new: true })
+            .findByIdAndUpdate(new Types.ObjectId(id), updateUserDto, { new: true })
             .exec();
         
         if (!updatedUser) {
@@ -42,7 +46,7 @@ export class UsersService {
     }
 
     async deleteUser(id: string): Promise<void> {
-        const result = await this.userModel.findByIdAndDelete(id);
+        const result = await this.userModel.findByIdAndDelete(new Types.ObjectId(id));
         if (!result) {
             throw new NotFoundException('User not found');
         }
