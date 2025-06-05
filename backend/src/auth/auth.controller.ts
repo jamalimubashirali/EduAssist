@@ -1,20 +1,23 @@
-import { Controller, Post, Body, Res, Req, UseGuards } from '@nestjs/common';
+import { Controller, Post, Body, Res, Req, UseGuards, HttpCode } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { LoginDto } from './dto/LoginDto';
 import { CreateUserDto } from 'src/users/dto/create.user.dto';
 import { Request, Response } from 'express';
 import { AccessTokenGuard } from 'common/guards/access-token.guard';
 import { RefreshTokenGuard } from 'common/guards/refresh-token.guard';
+import { Public } from 'common/decorators/public_endpoint.decorators';
 
 @Controller('auth')
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
+  @Public()
   @Post('register')
   async register(@Body() createUserDto: CreateUserDto) {
     return this.authService.register(createUserDto);
   }
 
+  @Public()
   @Post('login')
   async login(
     @Res({ passthrough: true }) res: Response,
@@ -39,7 +42,6 @@ export class AuthController {
     return { message };
   }
 
-  @UseGuards(AccessTokenGuard)
   @Post('logout')
   async logout(
     @Req() req: Request,
@@ -53,6 +55,7 @@ export class AuthController {
     return { message: 'Logout successful' };
   }
 
+  @Public()
   @UseGuards(RefreshTokenGuard)
   @Post('refresh')
   async refreshTokens(
