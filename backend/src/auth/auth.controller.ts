@@ -3,7 +3,6 @@ import { AuthService } from './auth.service';
 import { LoginDto } from './dto/LoginDto';
 import { CreateUserDto } from 'src/users/dto/create.user.dto';
 import { Request, Response } from 'express';
-import { AccessTokenGuard } from 'common/guards/access-token.guard';
 import { RefreshTokenGuard } from 'common/guards/refresh-token.guard';
 import { Public } from 'common/decorators/public_endpoint.decorators';
 
@@ -67,7 +66,7 @@ export class AuthController {
 
     const tokens = await this.authService.refreshTokens(userId, refreshToken);
 
-    // Set new cookies
+    // Setting new cookies
     res.cookie('access_token', tokens.access_token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',

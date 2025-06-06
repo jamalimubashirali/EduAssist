@@ -14,7 +14,7 @@ export class UsersService {
     }
 
     async findById(id: string): Promise<User> {
-        const user = await this.userModel.findById(new Types.ObjectId(id));
+        const user = await this.userModel.findById(new Types.ObjectId(id)).select("-password -token");
         if (!user) {
             throw new NotFoundException('User not found');
         }
@@ -23,9 +23,6 @@ export class UsersService {
 
     async findByEmail(email: string): Promise<User | null> {
         const user =  await this.userModel.findOne({ email });
-        if(!user) {
-            throw new NotFoundException("User not Found");
-        }
         return user;
     }
 
@@ -36,7 +33,7 @@ export class UsersService {
 
     async updateUser(id: string, updateUserDto: UpdateUserDto): Promise<User> {
         const updatedUser = await this.userModel
-            .findByIdAndUpdate(new Types.ObjectId(id), updateUserDto, { new: true })
+            .findByIdAndUpdate(new Types.ObjectId(id), updateUserDto, { new: true }).select("-password -toke")
             .exec();
         
         if (!updatedUser) {
