@@ -1,5 +1,5 @@
 import { Prop, Schema, SchemaFactory } from "@nestjs/mongoose";
-import { HydratedDocument, SchemaTypeOptions, SchemaTypes, Types } from "mongoose";
+import { HydratedDocument, SchemaTypes, Types } from "mongoose";
 import * as bcrypt from 'bcrypt';
 
 
