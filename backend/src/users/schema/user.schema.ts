@@ -7,7 +7,7 @@ export type UserSchema = HydratedDocument<User>;
 
 @Schema({ timestamps: true })
 export class User {
-    @Prop({type : SchemaTypes.ObjectId , auto : true})
+    @Prop({ type: SchemaTypes.ObjectId, auto: true })
     _id: Types.ObjectId;
 
     @Prop({ required: true, unique: true })
@@ -19,11 +19,11 @@ export class User {
     @Prop({ required: true })
     password: string;
 
-    @Prop({default : null})
+    @Prop({ default: null })
     token: string;
 
-    @Prop({ default: []})
-    preferences: string[];
+    @Prop({ type: SchemaTypes.ObjectId, ref: 'Subject' })
+    preferences: Types.ObjectId[];
 
     @Prop({ default: 0 })
     leaderboardScore: number;
@@ -37,12 +37,11 @@ export class User {
 
 export const UserSchema = SchemaFactory.createForClass(User);
 
-UserSchema.pre('save', async function(next) {
+UserSchema.pre('save', async function (next) {
     // Only hash the password if it has been modified (or is new)
     if (!this.isModified('password')) {
         return next();
     }
-
     try {
         // Generate salt and hash password
         const salt = await bcrypt.genSalt(10);

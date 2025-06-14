@@ -13,9 +13,5 @@ export class CreateUserDto {
     @IsNotEmpty()
     @IsString()
     name: string;
-
-    @IsNotEmpty()
-    @IsArray()
-    preferences: string[];
 }
 

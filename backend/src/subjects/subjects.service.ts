@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  ConflictException,
+} from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { Subject } from './schema/subjects.schema';
@@ -8,15 +12,15 @@ import { UpdateSubjectDto } from './dto/updateSubject.dto';
 @Injectable()
 export class SubjectsService {
   constructor(
-    @InjectModel(Subject.name) private subjectModel: Model<Subject>
+    @InjectModel(Subject.name) private subjectModel: Model<Subject>,
   ) {}
 
   async create(createSubjectDto: CreateSubjectDto): Promise<Subject> {
     try {
-      const existingSubject = await this.subjectModel.findOne({ 
-        subjectName: createSubjectDto.subjectName 
+      const existingSubject = await this.subjectModel.findOne({
+        subjectName: createSubjectDto.subjectName,
       });
-      
+
       if (existingSubject) {
         throw new ConflictException('Subject with this name already exists');
       }
@@ -51,7 +55,10 @@ export class SubjectsService {
     return await this.subjectModel.findOne({ subjectName }).exec();
   }
 
-  async update(id: string, updateSubjectDto: UpdateSubjectDto): Promise<Subject> {
+  async update(
+    id: string,
+    updateSubjectDto: UpdateSubjectDto,
+  ): Promise<Subject> {
     if (!Types.ObjectId.isValid(id)) {
       throw new NotFoundException('Invalid subject ID format');
     }
@@ -60,9 +67,9 @@ export class SubjectsService {
     if (updateSubjectDto.subjectName) {
       const existingSubject = await this.subjectModel.findOne({
         subjectName: updateSubjectDto.subjectName,
-        _id: { $ne: id }
+        _id: { $ne: id },
       });
-      
+
       if (existingSubject) {
         throw new ConflictException('Subject with this name already exists');
       }
@@ -78,7 +85,7 @@ export class SubjectsService {
     return updatedSubject;
   }
 
-  async remove(id: string): Promise<void> {
+  async remove(id: string): Promise<boolean> {
     if (!Types.ObjectId.isValid(id)) {
       throw new NotFoundException('Invalid subject ID format');
     }
@@ -87,6 +94,8 @@ export class SubjectsService {
     if (!result) {
       throw new NotFoundException('Subject not found');
     }
+
+    return true;
   }
 
   async getSubjectStats(id: string): Promise<any> {
@@ -97,7 +106,7 @@ export class SubjectsService {
     // This would aggregate data from related collections
     // Implementation depends on your specific requirements
     const subject = await this.findById(id);
-    
+
     return {
       subject,
       // Add aggregated statistics here
