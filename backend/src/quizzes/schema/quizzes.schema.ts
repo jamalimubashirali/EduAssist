@@ -11,7 +11,7 @@ export class Quiz{
     @Prop({type : SchemaTypes.ObjectId , ref : "Topic" , required : true})
     topicId : Types.ObjectId;
 
-    @Prop({type : SchemaTypes.ObjectId , ref : "Questions" , required : true})
+    @Prop({type : [SchemaTypes.ObjectId] , ref : "Question" , required : true})
     questionIds : Types.ObjectId[];
 
     @Prop()
