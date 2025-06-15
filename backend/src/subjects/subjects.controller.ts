@@ -18,18 +18,18 @@ export class SubjectsController {
     return this.subjectsService.create(createSubjectDto);
   }
 
-  @Get("get-subjects-by-id/:id")
-  async getSubjectsById(id: string): Promise<Subject> {
+  @Get("get-subjects-by-id")
+  async getSubjectsById(@Param('id') id: string): Promise<Subject> {
     return this.subjectsService.findById(id);
   }
 
-  @Get("get-subjects-by-name/:subjectName")
-  async getSubjectsByName(subjectName: string): Promise<Subject | null> {
+  @Get("get-subjects-by-name")
+  async getSubjectsByName(@Param('subjectName') subjectName: string): Promise<Subject | null> {
     return this.subjectsService.findByName(subjectName);
   }
 
-  @Patch("update-subject/:id")
-  async updateSubject(id: string, updateSubjectDto: UpdateSubjectDto): Promise<Subject> {
+  @Patch("update-subject")
+  async updateSubject(@Param('id') id: string, updateSubjectDto: UpdateSubjectDto): Promise<Subject> {
     return this.subjectsService.update(id, updateSubjectDto);
   }
 
@@ -45,4 +45,8 @@ export class SubjectsController {
     }
   }
 
+  @Get("get-subject-stats")
+  async getSubjectStats(@Param('id') id : string): Promise<any> {
+    return this.subjectsService.getSubjectStats(id);
+  }
 }

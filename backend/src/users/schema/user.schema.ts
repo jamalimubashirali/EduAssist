@@ -22,7 +22,7 @@ export class User {
     @Prop({ default: null })
     token: string;
 
-    @Prop({ type: SchemaTypes.ObjectId, ref: 'Subject' })
+    @Prop({ type: [SchemaTypes.ObjectId], ref: 'Subject' , default: [] })
     preferences: Types.ObjectId[];
 
     @Prop({ default: 0 })

@@ -13,5 +13,8 @@ export class CreateUserDto {
     @IsNotEmpty()
     @IsString()
     name: string;
+
+    @IsString({ each: true })
+    token?: string;
 }
 

@@ -33,7 +33,7 @@ export class UsersService {
 
     async updateUser(id: string, updateUserDto: UpdateUserDto): Promise<User> {
         const updatedUser = await this.userModel
-            .findByIdAndUpdate(new Types.ObjectId(id), updateUserDto, { new: true }).select("-password -toke")
+            .findByIdAndUpdate(new Types.ObjectId(id), updateUserDto, { new: true }).select("-password -token")
             .exec();
         
         if (!updatedUser) {
