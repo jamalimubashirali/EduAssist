@@ -1,5 +1,6 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { HydratedDocument, SchemaTypes, Types } from 'mongoose';
+import { DifficultyLevel } from 'common/enums';
 
 export type QuestionSchema = HydratedDocument<Question>;
 
@@ -11,19 +12,19 @@ export class Question {
     @Prop({ type: SchemaTypes.ObjectId, ref: 'Topic', required: true })
     topicId: Types.ObjectId;
 
-    @Prop({ required: true })
-    questionDifficulty: string;
+    @Prop({ type: String, enum: Object.values(DifficultyLevel), required: true })
+    questionDifficulty: DifficultyLevel;
 
     @Prop({ required: true })
-    questionDescription: string;
+    questionText: string; // Updated from questionDescription
 
-    @Prop({ required: true })
+    @Prop({ required: true, type: [String] })
     answerOptions: string[];
 
     @Prop({ required: true })
     correctAnswer: string;
 
-    @Prop({ type: SchemaTypes.ObjectId, auto: true })
+    @Prop({ type: SchemaTypes.ObjectId, ref: 'Subject', required: true })
     subjectId: Types.ObjectId;
 }
 

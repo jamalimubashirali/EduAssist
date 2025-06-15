@@ -1,5 +1,6 @@
 import { Prop, Schema, SchemaFactory } from "@nestjs/mongoose";
 import { HydratedDocument, SchemaTypes, Types } from "mongoose";
+import { RecommendationStatus, DifficultyLevel } from 'common/enums';
 
 export type RecommendationSchema = HydratedDocument<Recommendation>;
 
@@ -8,7 +9,7 @@ export class Recommendation{
     @Prop({type : SchemaTypes.ObjectId , auto : true})
     _id : Types.ObjectId;
 
-    @Prop({type : SchemaTypes.ObjectId , ref : "Users" , required : true})
+    @Prop({type : SchemaTypes.ObjectId , ref : "User" , required : true})
     userId : Types.ObjectId;
 
     @Prop({type : SchemaTypes.ObjectId , ref : "Subject" , required : true})
@@ -23,11 +24,11 @@ export class Recommendation{
     @Prop({default : ""})
     recommendationReason : string;
 
-    @Prop({required : true})
-    suggestedDifficulty : string;
+    @Prop({ type: String, enum: Object.values(DifficultyLevel), required : true })
+    suggestedDifficulty : DifficultyLevel;
 
-    @Prop({required : true})
-    recommendationStatus : string
+    @Prop({ type: String, enum: Object.values(RecommendationStatus), default: RecommendationStatus.PENDING })
+    recommendationStatus : RecommendationStatus;
 }
 
 export const RecommendationSchema = SchemaFactory.createForClass(Recommendation);

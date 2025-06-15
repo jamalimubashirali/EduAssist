@@ -8,6 +8,7 @@ import { Model, Types } from 'mongoose';
 import { Subject } from './schema/subjects.schema';
 import { CreateSubjectDto } from './dto/createSubject.dto';
 import { UpdateSubjectDto } from './dto/updateSubject.dto';
+import { SubjectStats } from 'common/types';
 
 @Injectable()
 export class SubjectsService {
@@ -98,21 +99,55 @@ export class SubjectsService {
     return true;
   }
 
-  async getSubjectStats(id: string): Promise<any> {
+  async getSubjectStats(id: string): Promise<{ subjectStats: SubjectStats; message: string }> {
     if (!Types.ObjectId.isValid(id)) {
       throw new NotFoundException('Invalid subject ID format');
     }
 
     // This would aggregate data from related collections
     // Implementation depends on your specific requirements
-    const subject = await this.findById(id);
+    const subjectStats = await this.subjectModel.aggregate([
+      {
+        $match : { _id: new Types.ObjectId(id) },
+      },
+      {
+          $lookup: {
+            from: 'topics',
+            localField: '_id',
+            foreignField: 'subjectId',
+            as: 'topics'
+          }
+      },
+      {
+        $lookup: {
+          from: 'questions',
+          localField: '_id',
+          foreignField: 'subjectId',
+          as: 'questions'
+        }
+      },
+      {
+        $lookup: {
+          from: 'quizzes',
+          localField: '_id',
+          foreignField: 'subjectId',
+          as: 'quizzes'
+        }
+      },
+      {
+        $project: {
+          subjectName: 1,
+          description: 1,
+          topicsCount: { $size: '$topics' },
+          questionsCount: { $size: '$questions' },
+          quizzesCount: { $size: '$quizzes' },
+        },
+      },
+    ]);
 
     return {
-      subject,
-      // Add aggregated statistics here
-      topicsCount: 0, // Count from topics collection
-      questionsCount: 0, // Count from questions collection
-      quizzesCount: 0, // Count from quizzes collection
+      subjectStats: subjectStats.length > 0 ? subjectStats[0] : null,
+      message: subjectStats.length > 0 ? 'Subject stats retrieved successfully' : 'No stats found for this subject',
     };
   }
 }

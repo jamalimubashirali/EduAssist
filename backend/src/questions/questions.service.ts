@@ -2,8 +2,8 @@ import { Injectable, NotFoundException, BadRequestException } from '@nestjs/comm
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { Question } from './schema/questions.schema';
-// import { CreateQuestionDto } from './dto/create-question.dto';
-// import { UpdateQuestionDto } from './dto/update-question.dto';
+import { CreateQuestionDto } from './dto/create-question.dto';
+import { UpdateQuestionDto } from './dto/update-question.dto';
 
 @Injectable()
 export class QuestionsService {
@@ -11,22 +11,31 @@ export class QuestionsService {
     @InjectModel(Question.name) private questionModel: Model<Question>
   ) {}
 
-//   async create(createQuestionDto: CreateQuestionDto): Promise<Question> {
-//     try {
-//       // Validate that correctAnswer is one of the answerOptions
-//       if (!createQuestionDto.answerOptions.includes(createQuestionDto.correctAnswer)) {
-//         throw new BadRequestException('Correct answer must be one of the answer options');
-//       }
+  async create(createQuestionDto: CreateQuestionDto): Promise<Question> {
+    try {
 
-//       const newQuestion = new this.questionModel(createQuestionDto);
-//       return await newQuestion.save();
-//     } catch (error) {
-//       if (error instanceof BadRequestException) {
-//         throw error;
-//       }
-//       throw new Error(`Failed to create question: ${error.message}`);
-//     }
-//   }
+      // Check if the question already exists
+      const existingQuestion = await this.questionModel.findOne({
+        topicId: createQuestionDto.topicId,
+        subjectId: createQuestionDto.subjectId,
+        questionText: createQuestionDto.questionText
+      });
+      if (existingQuestion) {
+        throw new BadRequestException('Question already exists');
+      }
+      // Validate that correctAnswer is one of the answerOptions
+      if (!createQuestionDto.answerOptions.includes(createQuestionDto.correctAnswer)) {
+        throw new BadRequestException('Correct answer must be one of the answer options');
+      }
+      const newQuestion = new this.questionModel(createQuestionDto);
+      return await newQuestion.save();
+    } catch (error) {
+      if (error instanceof BadRequestException) {
+        throw error;
+      }
+      throw new Error(`Failed to create question: ${error.message}`);
+    }
+  }
 
   async findAll(): Promise<Question[]> {
     return await this.questionModel
@@ -119,29 +128,29 @@ export class QuestionsService {
       .exec();
   }
 
-//   async update(id: string, updateQuestionDto: UpdateQuestionDto): Promise<Question> {
-//     if (!Types.ObjectId.isValid(id)) {
-//       throw new NotFoundException('Invalid question ID format');
-//     }
+  async update(id: string, updateQuestionDto: UpdateQuestionDto): Promise<Question> {
+    if (!Types.ObjectId.isValid(id)) {
+      throw new NotFoundException('Invalid question ID format');
+    }
 
-//     // Validate correctAnswer if provided
-//     if (updateQuestionDto.correctAnswer && updateQuestionDto.answerOptions) {
-//       if (!updateQuestionDto.answerOptions.includes(updateQuestionDto.correctAnswer)) {
-//         throw new BadRequestException('Correct answer must be one of the answer options');
-//       }
-//     }
+    // Validate correctAnswer if provided
+    if (updateQuestionDto.correctAnswer && updateQuestionDto.answerOptions) {
+      if (!updateQuestionDto.answerOptions.includes(updateQuestionDto.correctAnswer)) {
+        throw new BadRequestException('Correct answer must be one of the answer options');
+      }
+    }
 
-//     const updatedQuestion = await this.questionModel
-//       .findByIdAndUpdate(id, updateQuestionDto, { new: true })
-//       .populate('topicId', 'topicName topicDescription')
-//       .populate('subjectId', 'subjectName')
-//       .exec();
+    const updatedQuestion = await this.questionModel
+      .findByIdAndUpdate(id, updateQuestionDto, { new: true })
+      .populate('topicId', 'topicName topicDescription')
+      .populate('subjectId', 'subjectName')
+      .exec();
 
-//     if (!updatedQuestion) {
-//       throw new NotFoundException('Question not found');
-//     }
-//     return updatedQuestion;
-//   }
+    if (!updatedQuestion) {
+      throw new NotFoundException('Question not found');
+    }
+    return updatedQuestion;
+  }
 
   async remove(id: string): Promise<void> {
     if (!Types.ObjectId.isValid(id)) {

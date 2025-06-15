@@ -125,61 +125,61 @@ export class PerformanceService {
     };
   }
 
-  async updatePerformanceFromAttempt(
-    userId: string,
-    subjectId: string,
-    topicId: string,
-    attemptData: any
-  ): Promise<UserPerformance> {
-    if (!Types.ObjectId.isValid(userId) || !Types.ObjectId.isValid(subjectId) || !Types.ObjectId.isValid(topicId)) {
-      throw new NotFoundException('Invalid ID format');
-    }
+  // async updatePerformanceFromAttempt(
+  //   userId: string,
+  //   subjectId: string,
+  //   topicId: string,
+  //   attemptData: any
+  // ): Promise<UserPerformance> {
+  //   if (!Types.ObjectId.isValid(userId) || !Types.ObjectId.isValid(subjectId) || !Types.ObjectId.isValid(topicId)) {
+  //     throw new NotFoundException('Invalid ID format');
+  //   }
 
-    let performance = await this.performanceModel.findOne({
-      userId,
-      subjectId,
-      topicId
-    });
+  //   let performance = await this.performanceModel.findOne({
+  //     userId,
+  //     subjectId,
+  //     topicId
+  //   });
 
-    if (!performance) {
-      // Create new performance record
-      performance = new this.performanceModel({
-        userId,
-        subjectId,
-        topicId,
-        totalAttempts: 1,
-        accurracy: attemptData.accuracy,
-        averageScore: attemptData.score,
-        bestScore: attemptData.score,
-        worstScore: attemptData.score,
-        progressTrend: 'Steady',
-        lastQuizAttempted: new Date()
-      });
-    } else {
-      // Update existing performance record
-      const newTotalAttempts = performance.totalAttempts + 1;
-      const newAverageScore = ((performance.averageScore * performance.totalAttempts) + attemptData.score) / newTotalAttempts;
-      const newAverageAccuracy = ((performance.accurracy * performance.totalAttempts) + attemptData.accuracy) / newTotalAttempts;
+  //   if (!performance) {
+  //     // Create new performance record
+  //     performance = new this.performanceModel({
+  //       userId,
+  //       subjectId,
+  //       topicId,
+  //       totalAttempts: 1,
+  //       accurracy: attemptData.accuracy,
+  //       averageScore: attemptData.score,
+  //       bestScore: attemptData.score,
+  //       worstScore: attemptData.score,
+  //       progressTrend: 'Steady',
+  //       lastQuizAttempted: new Date()
+  //     });
+  //   } else {
+  //     // Update existing performance record
+  //     const newTotalAttempts = performance.totalAttempts + 1;
+  //     const newAverageScore = ((performance.averageScore * performance.totalAttempts) + attemptData.score) / newTotalAttempts;
+  //     const newAverageAccuracy = ((performance.accurracy * performance.totalAttempts) + attemptData.accuracy) / newTotalAttempts;
 
-      performance.totalAttempts = newTotalAttempts;
-      performance.averageScore = Math.round(newAverageScore);
-      performance.accurracy = parseFloat(newAverageAccuracy.toFixed(2));
-      performance.bestScore = Math.max(performance.bestScore, attemptData.score);
-      performance.worstScore = Math.min(performance.worstScore, attemptData.score);
-      performance.lastQuizAttempted = new Date();
+  //     performance.totalAttempts = newTotalAttempts;
+  //     performance.averageScore = Math.round(newAverageScore);
+  //     performance.accurracy = parseFloat(newAverageAccuracy.toFixed(2));
+  //     performance.bestScore = Math.max(performance.bestScore, attemptData.score);
+  //     performance.worstScore = Math.min(performance.worstScore, attemptData.score);
+  //     performance.lastQuizAttempted = new Date();
 
-      // Determine progress trend (simplified logic)
-      if (attemptData.score > performance.averageScore) {
-        performance.progressTrend = 'Improving';
-      } else if (attemptData.score < performance.averageScore) {
-        performance.progressTrend = 'Declining';
-      } else {
-        performance.progressTrend = 'Steady';
-      }
-    }
+  //     // Determine progress trend (simplified logic)
+  //     if (attemptData.score > performance.averageScore) {
+  //       performance.progressTrend = 'Improving';
+  //     } else if (attemptData.score < performance.averageScore) {
+  //       performance.progressTrend = 'Declining';
+  //     } else {
+  //       performance.progressTrend = 'Steady';
+  //     }
+  //   }
 
-    return await performance.save();
-  }
+  //   return await performance.save();
+  // }
 
 //   async update(id: string, updatePerformanceDto: UpdatePerformanceDto): Promise<UserPerformance> {
 //     if (!Types.ObjectId.isValid(id)) {

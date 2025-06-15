@@ -2,23 +2,30 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { Topic } from './schema/topics.schema';
-// import { CreateTopicDto } from './dto/create-topic.dto';
-// import { UpdateTopicDto } from './dto/update-topic.dto';
+import { CreateTopicDto } from './dto/createtopic.dto';
+import { UpdateTopicDto } from './dto/updatetopic.dto';
 
 @Injectable()
 export class TopicsService {
   constructor(
     @InjectModel(Topic.name) private topicModel: Model<Topic>
-  ) {}
+  ) { }
 
-//   async create(createTopicDto: CreateTopicDto): Promise<Topic> {
-//     try {
-//       const newTopic = new this.topicModel(createTopicDto);
-//       return await newTopic.save();
-//     } catch (error) {
-//       throw new Error(`Failed to create topic: ${error.message}`);
-//     }
-//   }
+  async create(createTopicDto: CreateTopicDto): Promise<Topic> {
+    try {
+      const existingTopic = await this.topicModel.findOne({
+        topicName: createTopicDto.topicName,
+        subjectId: createTopicDto.subjectId
+      });
+      if (existingTopic) {
+        throw new Error('Topic with this name already exists for the given subject');
+      }
+      const newTopic = new this.topicModel(createTopicDto);
+      return await newTopic.save();
+    } catch (error) {
+      throw new Error(`Failed to create topic: ${error.message}`);
+    }
+  }
 
   async findAll(): Promise<Topic[]> {
     return await this.topicModel
@@ -36,7 +43,7 @@ export class TopicsService {
       .findById(id)
       .populate('subjectId', 'subjectName subjectDescription')
       .exec();
-      
+
     if (!topic) {
       throw new NotFoundException('Topic not found');
     }
@@ -54,21 +61,21 @@ export class TopicsService {
       .exec();
   }
 
-//   async update(id: string, updateTopicDto: UpdateTopicDto): Promise<Topic> {
-//     if (!Types.ObjectId.isValid(id)) {
-//       throw new NotFoundException('Invalid topic ID format');
-//     }
+  async update(id: string, updateTopicDto: UpdateTopicDto): Promise<Topic> {
+    if (!Types.ObjectId.isValid(id)) {
+      throw new NotFoundException('Invalid topic ID format');
+    }
 
-//     const updatedTopic = await this.topicModel
-//       .findByIdAndUpdate(id, updateTopicDto, { new: true })
-//       .populate('subjectId', 'subjectName subjectDescription')
-//       .exec();
+    const updatedTopic = await this.topicModel
+      .findByIdAndUpdate(id, updateTopicDto, { new: true })
+      .populate('subjectId', 'subjectName subjectDescription')
+      .exec();
 
-//     if (!updatedTopic) {
-//       throw new NotFoundException('Topic not found');
-//     }
-//     return updatedTopic;
-//   }
+    if (!updatedTopic) {
+      throw new NotFoundException('Topic not found');
+    }
+    return updatedTopic;
+  }
 
   async remove(id: string): Promise<void> {
     if (!Types.ObjectId.isValid(id)) {
