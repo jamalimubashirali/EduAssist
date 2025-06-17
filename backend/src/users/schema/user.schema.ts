@@ -19,10 +19,10 @@ export class User {
     @Prop({ required: true })
     password: string;
 
-    @Prop({ default: null })
-    token: string;
+    @Prop({ type: String, default: null })
+    token: string | null;
 
-    @Prop({ type: [SchemaTypes.ObjectId], ref: 'Subject' , default: [] })
+    @Prop({ type: [SchemaTypes.ObjectId], ref: 'Subject', default: [] })
     preferences: Types.ObjectId[];
 
     @Prop({ default: 0 })

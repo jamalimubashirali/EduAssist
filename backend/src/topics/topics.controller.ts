@@ -1,4 +1,4 @@
-import { Body, Controller, Get, HttpCode, HttpStatus, Param, Patch, Post, Query } from '@nestjs/common';
+import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, Patch, Post, Query } from '@nestjs/common';
 import { TopicsService } from './topics.service';
 import { Topic } from './schema/topics.schema';
 import { CreateTopicDto } from './dto/createtopic.dto';
@@ -20,10 +20,10 @@ export class TopicsController {
     return this.topicsService.findAll();
   }
 
-  @Get('get-topic-by-id/:id')
+  @Get('get-topic-by-id/:topicId')
   @HttpCode(HttpStatus.OK)
-  async getTopicById(@Param('id') id: string): Promise<Topic> {
-    return this.topicsService.findById(id);
+  async getTopicById(@Param('topicId') topicId: string): Promise<Topic> {
+    return this.topicsService.findById(topicId);
   }
 
   @Get('get-topics-by-subject/:subjectId')
@@ -32,10 +32,20 @@ export class TopicsController {
     return this.topicsService.findBySubject(subjectId);
   }
 
-  @Patch('update-topic/:id')
+  @Patch('update-topic/:topicId')
   @HttpCode(HttpStatus.OK)
-  async updateTopic(@Param('id') id: string ,@Body() updateTopicDto: UpdateTopicDto): Promise<Topic> {
-    return this.topicsService.update(id, updateTopicDto);
+  async updateTopic(@Param('topicId') topicId: string ,@Body() updateTopicDto: UpdateTopicDto): Promise<Topic> {
+    return this.topicsService.update(topicId, updateTopicDto);
+  }
+
+  @Delete('remove-topic/:topicId')
+  @HttpCode(HttpStatus.OK)
+  async removeTopic(@Param('topicId') topicId: string): Promise<{ deleted: boolean , message?: string }> {
+    const deleted = await this.topicsService.remove(topicId);
+    return {
+      deleted,
+      message : deleted ? 'Topic deleted successfully' : 'Topic not found'
+    }
   }
 
   @Get('search-topics') 

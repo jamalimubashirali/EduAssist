@@ -21,10 +21,10 @@ export class QuestionsController {
         return this.questionsService.findAll();
     }
 
-    @Get('get-question-by-id/:id')
+    @Get('get-question-by-id/:questionId')
     @HttpCode(HttpStatus.OK)
-    async getQuestionById(@Param('id') id: string): Promise<Question> {
-        return this.questionsService.findById(id);
+    async getQuestionById(@Param('questionId') questionId: string): Promise<Question> {
+        return this.questionsService.findById(questionId);
     }
 
     @Get('get-questions-by-topic/:topicId')
@@ -48,15 +48,15 @@ export class QuestionsController {
         return this.questionsService.findByTopicAndDifficulty(topicId, difficulty);
     }
 
-    @Patch('update-question/:id')
+    @Patch('update-question/:questionId')
     @HttpCode(HttpStatus.OK)
-    async updateQuestion(@Param('id') id: string, @Body() updateQuestionDto: UpdateQuestionDto): Promise<Question> {
-        return this.questionsService.update(id, updateQuestionDto);
+    async updateQuestion(@Param('questionId') questionId: string, @Body() updateQuestionDto: UpdateQuestionDto): Promise<Question> {
+        return this.questionsService.update(questionId, updateQuestionDto);
     }
 
-    @Delete('delete-question/:id')
+    @Delete('delete-question/:questionId')
     @HttpCode(HttpStatus.OK)
-    async deleteQuestion(@Param('id') id: string): Promise<void> {
-        return this.questionsService.remove(id);
+    async deleteQuestion(@Param('questionId') questionId: string): Promise<void> {
+        return this.questionsService.remove(questionId);
     }
 }

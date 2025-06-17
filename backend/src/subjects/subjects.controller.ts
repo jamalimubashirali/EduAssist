@@ -4,6 +4,7 @@ import { Subject } from './schema/subjects.schema';
 import { CreateSubjectDto } from './dto/createSubject.dto';
 import { UpdateSubjectDto } from './dto/updateSubject.dto';
 import { SubjectStats } from 'common/types';
+import { TextUtils } from 'src/common/utils/text.utils';
 
 @Controller('subjects')
 export class SubjectsController {
@@ -18,43 +19,51 @@ export class SubjectsController {
   @Post("create-subject")
   @HttpCode(HttpStatus.CREATED)
   async createSubject(@Body() createSubjectDto: CreateSubjectDto): Promise<Subject> {
+    if (createSubjectDto.subjectName) {
+      createSubjectDto.subjectName = TextUtils.toTitleCase(createSubjectDto.subjectName);
+    }
+    if (createSubjectDto.subjectDescription) {
+      createSubjectDto.subjectDescription = TextUtils.toSentenceCase(createSubjectDto.subjectDescription);
+    }
+    
     return this.subjectsService.create(createSubjectDto);
   }
 
-  @Get("get-subjects-by-id/:id")
+  @Get("get-subject-by-id/:subjectId")
   @HttpCode(HttpStatus.OK)
-  async getSubjectsById(@Param('id') id: string): Promise<Subject> {
-    return this.subjectsService.findById(id);
+  async getSubjectsById(@Param('subjectId') subjectId: string): Promise<Subject> {
+    return this.subjectsService.findById(subjectId);
   }
 
-  @Get("get-subjects-by-name/:subjectName") 
+  @Get("get-subject-by-name/:subjectName") 
   @HttpCode(HttpStatus.OK)
   async getSubjectsByName(@Param('subjectName') subjectName: string): Promise<Subject | null> {
-    return this.subjectsService.findByName(subjectName);
+    const capitalizedName = TextUtils.toTitleCase(subjectName);
+    return this.subjectsService.findByName(capitalizedName);
   }
 
-  @Patch("update-subject/:id")
+  @Patch("update-subject/:subjectId")
   @HttpCode(HttpStatus.OK)
-  async updateSubject(@Param('id') id: string,@Body() updateSubjectDto: UpdateSubjectDto): Promise<Subject> {
-    return this.subjectsService.update(id, updateSubjectDto);
-  }
-
-  @Delete("remove-subject/:id")
-  @HttpCode(HttpStatus.OK)
-  async deleteSubjectById(@Param('id') id : string) : Promise<{
-    message : string,
-    status : boolean
-  }> {
-    const status =  await this.subjectsService.remove(id);
-    return {
-      message : "The subject is successfully deleted",
-      status : status
+  async updateSubject(@Param('subjectId') subjectId: string, @Body() updateSubjectDto: UpdateSubjectDto): Promise<Subject> {
+    if (updateSubjectDto.subjectName) {
+      updateSubjectDto.subjectName = TextUtils.toTitleCase(updateSubjectDto.subjectName);
     }
+    if (updateSubjectDto.subjectDescription) {
+      updateSubjectDto.subjectDescription = TextUtils.toSentenceCase(updateSubjectDto.subjectDescription);
+    }
+    
+    return this.subjectsService.update(subjectId, updateSubjectDto);
   }
 
-  @Get("get-subject-stats/:id")
+  @Delete("remove-subject/:subjectId")
+  @HttpCode(HttpStatus.NO_CONTENT)
+  async deleteSubjectById(@Param('subjectId') subjectId: string): Promise<void> {
+    await this.subjectsService.remove(subjectId);
+  }
+
+  @Get("get-subject-stats/:subjectId")
   @HttpCode(HttpStatus.OK)
-  async getSubjectStats(@Param('id') id : string): Promise<{ subjectStats: SubjectStats | null; message: string }> {
-    return this.subjectsService.getSubjectStats(id);
+  async getSubjectStats(@Param('subjectId') subjectId: string): Promise<{ subjectStats: SubjectStats | null; message: string }> {
+    return this.subjectsService.getSubjectStats(subjectId);
   }
 }

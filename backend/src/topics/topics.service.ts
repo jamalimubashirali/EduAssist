@@ -77,7 +77,7 @@ export class TopicsService {
     return updatedTopic;
   }
 
-  async remove(id: string): Promise<void> {
+  async remove(id: string): Promise<boolean> {
     if (!Types.ObjectId.isValid(id)) {
       throw new NotFoundException('Invalid topic ID format');
     }
@@ -86,6 +86,7 @@ export class TopicsService {
     if (!result) {
       throw new NotFoundException('Topic not found');
     }
+    return true;
   }
 
   async searchTopics(query: string): Promise<Topic[]> {

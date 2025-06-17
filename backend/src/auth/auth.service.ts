@@ -12,6 +12,7 @@ import { User } from 'src/users/schema/user.schema';
 import { TokenData, Tokens } from '../../common/types';
 import { LoginDto } from './dto/LoginDto';
 import * as bcrypt from 'bcrypt';
+import { use } from 'passport';
 
 @Injectable()
 export class AuthService {
@@ -38,25 +39,27 @@ export class AuthService {
 
   private async validateUser(email: string, pass: string): Promise<User> {
     const user = await this.usersService.findByEmail(email);
-    if (!user) throw new UnauthorizedException('Invalid credentials');
+    if (!user) throw new UnauthorizedException('Invalid Email');
     const isMatch = await bcrypt.compare(pass , user?.password);
-    if (!isMatch) throw new UnauthorizedException('Invalid credentials');
+    if (!isMatch) throw new UnauthorizedException('Invalid Password');
     return user;
   }
 
-  async login(loginDto : LoginDto): Promise<{
+  async login(loginDto: LoginDto): Promise<{
     tokens: Tokens;
     message: string;
   }> {
-    const user = await this.validateUser(loginDto.email , loginDto.password);
-    const newTokens : Tokens = await this.generateNewTokens({userId : user._id.toString() , email : user.email});
-    user.token = newTokens.refresh_token;
-    await this.usersService.updateUser(user._id.toString() , {
-      token : newTokens.refresh_token
+    const user = await this.validateUser(loginDto.email, loginDto.password);
+    const newTokens: Tokens = await this.generateNewTokens({
+      userId: user._id.toString(),
+      email: user.email
     });
+    
+    await this.usersService.updateRefreshToken(user._id.toString(), newTokens.refresh_token);
+    
     return {
-      tokens : newTokens,
-      message : "Login Successful"
+      tokens: newTokens,
+      message: "Login Successful"
     }
   }
 
@@ -91,21 +94,20 @@ export class AuthService {
 
   async logout(_id: string): Promise<Boolean> {
     const user = await this.usersService.findById(_id);
-    if(!user) {
-      throw new NotFoundException("User NOt Found");
+    if (!user) {
+      throw new NotFoundException("User Not Found");
     }
-    await this.usersService.updateUser(user._id.toString() , {
-      token : ""
-    });
+    
+    // Use the new method for clearing token
+    await this.usersService.clearRefreshToken(user._id.toString());
     return true;
   }
-
 
   async refreshTokens(userId: string, refreshToken: string): Promise<Tokens> {
     const user = await this.usersService.findById(userId);
     
     // Verify refresh token matches stored token
-    if (!user.token || user.token !== refreshToken) {
+    if (!user.token || (user.token !== refreshToken)) {
       throw new UnauthorizedException('Invalid refresh token');
     }
 
@@ -115,10 +117,8 @@ export class AuthService {
       email: user.email,
     });
 
-    // Update refresh token in database
-    await this.usersService.updateUser(user._id.toString(), {
-      token: tokens.refresh_token,
-    });
+    // Update refresh token in database using the new method
+    await this.usersService.updateRefreshToken(user._id.toString(), tokens.refresh_token);
 
     return tokens;
   }
