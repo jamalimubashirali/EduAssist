@@ -12,7 +12,6 @@ import { User } from 'src/users/schema/user.schema';
 import { TokenData, Tokens } from '../../common/types';
 import { LoginDto } from './dto/LoginDto';
 import * as bcrypt from 'bcrypt';
-import { use } from 'passport';
 
 @Injectable()
 export class AuthService {
@@ -103,22 +102,21 @@ export class AuthService {
     return true;
   }
 
-  async refreshTokens(userId: string, refreshToken: string): Promise<Tokens> {
-    const user = await this.usersService.findById(userId);
-    
-    // Verify refresh token matches stored token
-    if (!user.token || (user.token !== refreshToken)) {
-      throw new UnauthorizedException('Invalid refresh token');
+  async refreshTokens(refreshToken: string): Promise<Tokens> {
+    const user = await this.usersService.findByRefreshToken(refreshToken);
+
+    if(!user){
+      throw new UnauthorizedException('Invalid Refresh Token');
     }
 
     // Generate new tokens
     const tokens = await this.generateNewTokens({
-      userId: user._id.toString(),
-      email: user.email,
+      userId: user!._id.toString(),
+      email: user!.email,
     });
 
     // Update refresh token in database using the new method
-    await this.usersService.updateRefreshToken(user._id.toString(), tokens.refresh_token);
+    await this.usersService.updateRefreshToken(user!._id.toString(), tokens.refresh_token);
 
     return tokens;
   }

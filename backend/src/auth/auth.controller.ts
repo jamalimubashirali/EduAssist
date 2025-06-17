@@ -63,12 +63,8 @@ export class AuthController {
     @Res({ passthrough: true }) res: Response,
   ): Promise<{ message: string; tokens?: any }> {
     try {
-      const userId = req.user!['sub'];
       const refreshToken = req.user!['refreshToken'];
-
-      console.log('Refresh attempt for user:', userId); // Debug log
-
-      const tokens = await this.authService.refreshTokens(userId, refreshToken);
+      const tokens = await this.authService.refreshTokens(refreshToken);
 
       // Setting new cookies
       res.cookie('access_token', tokens.access_token, {
