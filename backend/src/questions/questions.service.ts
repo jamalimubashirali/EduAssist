@@ -18,7 +18,7 @@ export class QuestionsService {
       const existingQuestion = await this.questionModel.findOne({
         topicId: createQuestionDto.topicId,
         subjectId: createQuestionDto.subjectId,
-        questionText: createQuestionDto.questionText
+        questionText: createQuestionDto.questionStatement
       });
       if (existingQuestion) {
         throw new BadRequestException('Question already exists');
@@ -52,8 +52,6 @@ export class QuestionsService {
 
     const question = await this.questionModel
       .findById(id)
-      .populate('topicId', 'topicName topicDescription')
-      .populate('subjectId', 'subjectName')
       .exec();
       
     if (!question) {
@@ -69,8 +67,6 @@ export class QuestionsService {
 
     return await this.questionModel
       .find({ topicId })
-      .populate('topicId', 'topicName topicDescription')
-      .populate('subjectId', 'subjectName')
       .exec();
   }
 

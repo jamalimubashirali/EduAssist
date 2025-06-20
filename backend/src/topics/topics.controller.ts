@@ -1,8 +1,9 @@
-import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, Patch, Post, Query } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, Patch, Post, Query } from '@nestjs/common';
 import { TopicsService } from './topics.service';
 import { Topic } from './schema/topics.schema';
 import { CreateTopicDto } from './dto/createtopic.dto';
 import { UpdateTopicDto } from './dto/updatetopic.dto';
+import { SearchTopicsDto } from './dto/search.dto';
 
 @Controller('topics')
 export class TopicsController {
@@ -48,9 +49,16 @@ export class TopicsController {
     }
   }
 
-  @Get('search-topics') 
+  @Get('search-topic') 
   @HttpCode(HttpStatus.OK)
-  async searchTopics(@Query('search-query') query: string): Promise<Topic[]> {
-    return this.topicsService.searchTopics(query);
+  async searchTopics(@Query() searchDto: SearchTopicsDto): Promise<Topic[]> {
+  try {
+    if (!searchDto.q || searchDto.q.trim().length === 0) {
+      return [];
+    }
+    return this.topicsService.searchTopics(searchDto.q.trim());
+  } catch (error) {
+    throw new BadRequestException('Invalid search query');
+  }
   }
 }

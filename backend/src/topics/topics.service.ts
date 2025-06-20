@@ -20,7 +20,11 @@ export class TopicsService {
       if (existingTopic) {
         throw new Error('Topic with this name already exists for the given subject');
       }
-      const newTopic = new this.topicModel(createTopicDto);
+      const newTopic = await this.topicModel.create({
+        topicName : createTopicDto.topicName,
+        topicDescription: createTopicDto.topicDescription,
+        subjectId: new Types.ObjectId(createTopicDto.subjectId)
+      });
       return await newTopic.save();
     } catch (error) {
       throw new Error(`Failed to create topic: ${error.message}`);
@@ -57,7 +61,6 @@ export class TopicsService {
 
     return await this.topicModel
       .find({ subjectId })
-      .populate('subjectId', 'subjectName subjectDescription')
       .exec();
   }
 
@@ -68,7 +71,6 @@ export class TopicsService {
 
     const updatedTopic = await this.topicModel
       .findByIdAndUpdate(id, updateTopicDto, { new: true })
-      .populate('subjectId', 'subjectName subjectDescription')
       .exec();
 
     if (!updatedTopic) {

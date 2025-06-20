@@ -16,7 +16,7 @@ export class Question {
     questionDifficulty: DifficultyLevel;
 
     @Prop({ required: true })
-    questionText: string; // Updated from questionDescription
+    questionStatement: string; 
 
     @Prop({ required: true, type: [String] })
     answerOptions: string[];

@@ -39,7 +39,7 @@ export class QuestionsController {
         return this.questionsService.findByDifficulty(difficulty);
     }
 
-    @Get('by-topic-and-difficulty/:topicId')
+    @Get('get-questions-by-topic-and-difficulty/:topicId')
     @HttpCode(HttpStatus.OK)
     async getQuestionsByTopicAndDifficulty(
         @Param('topicId') topicId: string,
