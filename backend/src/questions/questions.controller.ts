@@ -11,52 +11,70 @@ export class QuestionsController {
 
     @Post('create-question')
     @HttpCode(HttpStatus.CREATED)
-    async createQuestion(@Body() createQuestionDto: CreateQuestionDto): Promise<Question> {
+    async createQuestion(@Body() createQuestionDto: CreateQuestionDto): Promise<Question | null> {
         return this.questionsService.create(createQuestionDto);
     }
 
-    @Get('get-questions')
+    @Get('all')
     @HttpCode(HttpStatus.OK)
     async getQuestions(): Promise<Question[]> {
         return this.questionsService.findAll();
     }
 
-    @Get('get-question-by-id/:questionId')
+    @Get('search')
     @HttpCode(HttpStatus.OK)
-    async getQuestionById(@Param('questionId') questionId: string): Promise<Question> {
-        return this.questionsService.findById(questionId);
+    async searchQuestions(@Query('q') query: string): Promise<Question[]> {
+        return this.questionsService.searchQuestions(query);
     }
 
-    @Get('get-questions-by-topic/:topicId')
+    @Get('topic/:topicId')
     @HttpCode(HttpStatus.OK)
     async getQuestionsByTopic(@Param('topicId') topicId: string): Promise<Question[]> {
         return this.questionsService.findByTopic(topicId);
     }
 
-    @Get('get-questions-by-difficulty')
+    @Get('subject/:subjectId')
     @HttpCode(HttpStatus.OK)
-    async getQuestionsByDifficulty(@Query('difficulty') difficulty: DifficultyLevel): Promise<Question[]> {
+    async getQuestionsBySubject(@Param('subjectId') subjectId: string): Promise<Question[]> {
+        return this.questionsService.findBySubject(subjectId);
+    }
+
+    @Get('difficulty')
+    @HttpCode(HttpStatus.OK)
+    async getQuestionsByDifficulty(@Query('level') difficulty: DifficultyLevel): Promise<Question[]> {
         return this.questionsService.findByDifficulty(difficulty);
     }
 
-    @Get('get-questions-by-topic-and-difficulty/:topicId')
+    @Get('topic/:topicId/difficulty/:difficulty')
     @HttpCode(HttpStatus.OK)
     async getQuestionsByTopicAndDifficulty(
         @Param('topicId') topicId: string,
-        @Query('difficulty') difficulty: DifficultyLevel
+        @Param('difficulty') difficulty: DifficultyLevel
     ): Promise<Question[]> {
         return this.questionsService.findByTopicAndDifficulty(topicId, difficulty);
     }
 
-    @Patch('update-question/:questionId')
+    @Get('stats/:id')
     @HttpCode(HttpStatus.OK)
-    async updateQuestion(@Param('questionId') questionId: string, @Body() updateQuestionDto: UpdateQuestionDto): Promise<Question> {
+    async getQuestionStats(@Param('id') id: string) {
+        return this.questionsService.getQuestionStats(id);
+    }
+
+    @Get(':id')
+    @HttpCode(HttpStatus.OK)
+    async getQuestionById(@Param('id') questionId: string): Promise<Question> {
+        return this.questionsService.findById(questionId);
+    }
+
+    @Patch(':id')
+    @HttpCode(HttpStatus.OK)
+    async updateQuestion(@Param('id') questionId: string, @Body() updateQuestionDto: UpdateQuestionDto): Promise<Question> {
         return this.questionsService.update(questionId, updateQuestionDto);
     }
 
-    @Delete('delete-question/:questionId')
-    @HttpCode(HttpStatus.OK)
-    async deleteQuestion(@Param('questionId') questionId: string): Promise<void> {
-        return this.questionsService.remove(questionId);
+    @Delete(':id')
+    @HttpCode(HttpStatus.NO_CONTENT)
+    async deleteQuestion(@Param('id') questionId: string): Promise<void> {
+        await this.questionsService.remove(questionId);
     }
 }

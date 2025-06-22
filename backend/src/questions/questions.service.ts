@@ -4,44 +4,57 @@ import { Model, Types } from 'mongoose';
 import { Question } from './schema/questions.schema';
 import { CreateQuestionDto } from './dto/create-question.dto';
 import { UpdateQuestionDto } from './dto/update-question.dto';
+import { DifficultyLevel } from 'common/enums';
 
 @Injectable()
 export class QuestionsService {
   constructor(
-    @InjectModel(Question.name) private questionModel: Model<Question>
+    @InjectModel(Question.name) private questionModel: Model<Question>,
   ) {}
 
-  async create(createQuestionDto: CreateQuestionDto): Promise<Question> {
+  async create(createQuestionDto: CreateQuestionDto): Promise<Question | null> {
     try {
-
-      // Check if the question already exists
-      const existingQuestion = await this.questionModel.findOne({
-        topicId: createQuestionDto.topicId,
-        subjectId: createQuestionDto.subjectId,
-        questionText: createQuestionDto.questionStatement
-      });
-      if (existingQuestion) {
-        throw new BadRequestException('Question already exists');
+      // Validate ObjectId formats
+      if (!Types.ObjectId.isValid(createQuestionDto.topicId)) {
+        throw new BadRequestException('Invalid topic ID format');
       }
-      // Validate that correctAnswer is one of the answerOptions
+      if (!Types.ObjectId.isValid(createQuestionDto.subjectId)) {
+        throw new BadRequestException('Invalid subject ID format');
+      }
+
+      // Validate that correct answer is in answer options
       if (!createQuestionDto.answerOptions.includes(createQuestionDto.correctAnswer)) {
         throw new BadRequestException('Correct answer must be one of the answer options');
       }
-      const newQuestion = new this.questionModel(createQuestionDto);
-      return await newQuestion.save();
+
+      const questionData = {
+        ...createQuestionDto,
+        topicId: new Types.ObjectId(createQuestionDto.topicId),
+        subjectId: new Types.ObjectId(createQuestionDto.subjectId),
+      };
+
+      const newQuestion = new this.questionModel(questionData);
+      const savedQuestion = await newQuestion.save();
+
+      return await this.questionModel
+        .findById(savedQuestion._id)
+        .populate('topicId', 'topicName')
+        .populate('subjectId', 'subjectName')
+        .exec();
     } catch (error) {
       if (error instanceof BadRequestException) {
         throw error;
       }
-      throw new Error(`Failed to create question: ${error.message}`);
+      throw new BadRequestException(`Failed to create question: ${error.message}`);
     }
   }
 
   async findAll(): Promise<Question[]> {
     return await this.questionModel
-      .find()
-      .populate('topicId', 'topicName topicDescription')
+      .find({ isActive: true })
+      .populate('topicId', 'topicName')
       .populate('subjectId', 'subjectName')
+      .sort({ createdAt: -1 })
       .exec();
   }
 
@@ -52,75 +65,72 @@ export class QuestionsService {
 
     const question = await this.questionModel
       .findById(id)
+      .populate('topicId', 'topicName')
+      .populate('subjectId', 'subjectName')
       .exec();
-      
-    if (!question) {
+
+    if (!question || !question.isActive) {
       throw new NotFoundException('Question not found');
     }
+
     return question;
   }
 
   async findByTopic(topicId: string): Promise<Question[]> {
     if (!Types.ObjectId.isValid(topicId)) {
-      throw new NotFoundException('Invalid topic ID format');
+      throw new BadRequestException('Invalid topic ID format');
     }
 
     return await this.questionModel
-      .find({ topicId })
-      .exec();
-  }
-
-  async findByDifficulty(difficulty: string): Promise<Question[]> {
-    return await this.questionModel
-      .find({ questionDifficulty: difficulty })
-      .populate('topicId', 'topicName topicDescription')
+      .find({ 
+        topicId: new Types.ObjectId(topicId),
+        isActive: true 
+      })
       .populate('subjectId', 'subjectName')
+      .sort({ questionDifficulty: 1, createdAt: -1 })
       .exec();
   }
 
-  async findByTopicAndDifficulty(topicId: string, difficulty: string): Promise<Question[]> {
-    if (!Types.ObjectId.isValid(topicId)) {
-      throw new NotFoundException('Invalid topic ID format');
+  async findBySubject(subjectId: string): Promise<Question[]> {
+    if (!Types.ObjectId.isValid(subjectId)) {
+      throw new BadRequestException('Invalid subject ID format');
     }
 
     return await this.questionModel
-      .find({ topicId, questionDifficulty: difficulty })
-      .populate('topicId', 'topicName topicDescription')
+      .find({ 
+        subjectId: new Types.ObjectId(subjectId),
+        isActive: true 
+      })
+      .populate('topicId', 'topicName')
+      .sort({ topicId: 1, questionDifficulty: 1 })
+      .exec();
+  }
+
+  async findByDifficulty(difficulty: DifficultyLevel): Promise<Question[]> {
+    return await this.questionModel
+      .find({ 
+        questionDifficulty: difficulty,
+        isActive: true 
+      })
+      .populate('topicId', 'topicName')
       .populate('subjectId', 'subjectName')
+      .sort({ createdAt: -1 })
       .exec();
   }
 
-  async getRandomQuestions(topicId: string, count: number, difficulty?: string): Promise<Question[]> {
+  async findByTopicAndDifficulty(topicId: string, difficulty: DifficultyLevel): Promise<Question[]> {
     if (!Types.ObjectId.isValid(topicId)) {
-      throw new NotFoundException('Invalid topic ID format');
-    }
-
-    const filter: any = { topicId };
-    if (difficulty) {
-      filter.questionDifficulty = difficulty;
+      throw new BadRequestException('Invalid topic ID format');
     }
 
     return await this.questionModel
-      .aggregate([
-        { $match: filter },
-        { $sample: { size: count } },
-        {
-          $lookup: {
-            from: 'topics',
-            localField: 'topicId',
-            foreignField: '_id',
-            as: 'topicId'
-          }
-        },
-        {
-          $lookup: {
-            from: 'subjects',
-            localField: 'subjectId',
-            foreignField: '_id',
-            as: 'subjectId'
-          }
-        }
-      ])
+      .find({ 
+        topicId: new Types.ObjectId(topicId),
+        questionDifficulty: difficulty,
+        isActive: true 
+      })
+      .populate('subjectId', 'subjectName')
+      .sort({ createdAt: -1 })
       .exec();
   }
 
@@ -129,8 +139,16 @@ export class QuestionsService {
       throw new NotFoundException('Invalid question ID format');
     }
 
-    // Validate correctAnswer if provided
-    if (updateQuestionDto.correctAnswer && updateQuestionDto.answerOptions) {
+    // Validate ObjectIds if provided
+    if (updateQuestionDto.topicId && !Types.ObjectId.isValid(updateQuestionDto.topicId)) {
+      throw new BadRequestException('Invalid topic ID format');
+    }
+    if (updateQuestionDto.subjectId && !Types.ObjectId.isValid(updateQuestionDto.subjectId)) {
+      throw new BadRequestException('Invalid subject ID format');
+    }
+
+    // Validate correct answer if provided
+    if (updateQuestionDto.answerOptions && updateQuestionDto.correctAnswer) {
       if (!updateQuestionDto.answerOptions.includes(updateQuestionDto.correctAnswer)) {
         throw new BadRequestException('Correct answer must be one of the answer options');
       }
@@ -138,13 +156,14 @@ export class QuestionsService {
 
     const updatedQuestion = await this.questionModel
       .findByIdAndUpdate(id, updateQuestionDto, { new: true })
-      .populate('topicId', 'topicName topicDescription')
+      .populate('topicId', 'topicName')
       .populate('subjectId', 'subjectName')
       .exec();
 
     if (!updatedQuestion) {
       throw new NotFoundException('Question not found');
     }
+
     return updatedQuestion;
   }
 
@@ -153,9 +172,94 @@ export class QuestionsService {
       throw new NotFoundException('Invalid question ID format');
     }
 
-    const result = await this.questionModel.findByIdAndDelete(id).exec();
+    // Soft delete by setting isActive to false
+    const result = await this.questionModel
+      .findByIdAndUpdate(id, { isActive: false }, { new: true })
+      .exec();
+
     if (!result) {
       throw new NotFoundException('Question not found');
     }
+  }
+
+  async searchQuestions(searchTerm: string): Promise<Question[]> {
+    if (!searchTerm || searchTerm.trim().length === 0) {
+      return [];
+    }
+
+    const searchRegex = new RegExp(searchTerm.trim(), 'i');
+
+    return await this.questionModel
+      .find({
+        $and: [
+          { isActive: true },
+          {
+            $or: [
+              { questionText: { $regex: searchRegex } },
+              { tags: { $in: [searchRegex] } },
+              { explanation: { $regex: searchRegex } }
+            ]
+          }
+        ]
+      })
+      .populate('topicId', 'topicName')
+      .populate('subjectId', 'subjectName')
+      .limit(20)
+      .sort({ timesAsked: -1, createdAt: -1 })
+      .exec();
+  }
+
+  async getQuestionStats(id: string): Promise<{
+    question: Question;
+    stats: {
+      totalAttempts: number;
+      correctAttempts: number;
+      accuracy: number;
+      averageTime: number;
+      difficultyRating: number;
+    };
+  }> {
+    if (!Types.ObjectId.isValid(id)) {
+      throw new NotFoundException('Invalid question ID format');
+    }
+
+    const question = await this.findById(id);
+    
+    const stats = {
+      totalAttempts: question.timesAsked || 0,
+      correctAttempts: question.timesAnsweredCorrectly || 0,
+      accuracy: question.timesAsked > 0 
+        ? Math.round((question.timesAnsweredCorrectly / question.timesAsked) * 100) 
+        : 0,
+      averageTime: question.averageTimeToAnswer || 0,
+      difficultyRating: question.difficultyRating || 50
+    };
+
+    return { question, stats };
+  }
+
+  async updateQuestionStats(questionId: string, isCorrect: boolean, timeSpent: number): Promise<void> {
+    if (!Types.ObjectId.isValid(questionId)) {
+      return;
+    }
+
+    const question = await this.questionModel.findById(questionId);
+    if (!question) return;
+
+    const updateData: any = {
+      $inc: { 
+        timesAsked: 1,
+        ...(isCorrect ? { timesAnsweredCorrectly: 1 } : {})
+      }
+    };
+
+    // Update average time
+    const currentAverage = question.averageTimeToAnswer || 0;
+    const currentCount = question.timesAsked || 0;
+    const newAverage = ((currentAverage * currentCount) + timeSpent) / (currentCount + 1);
+    
+    updateData.averageTimeToAnswer = Math.round(newAverage);
+
+    await this.questionModel.findByIdAndUpdate(questionId, updateData);
   }
 }

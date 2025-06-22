@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, MiddlewareConsumer, NestModule } from '@nestjs/common';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { ConfigModule } from '@nestjs/config';
@@ -14,6 +14,7 @@ import { TopicsModule } from './topics/topics.module';
 import { AttemptsModule } from './attempts/attempts.module';
 import { RecommendationsModule } from './recommendations/recommendations.module';
 import { PerformanceModule } from './performance/performance.module';
+import { CookieLoggerMiddleware } from './common/middleware/cookie-logger.middleware';
 
 @Module({
   imports: [
@@ -21,7 +22,17 @@ import { PerformanceModule } from './performance/performance.module';
       isGlobal: true,
       envFilePath: '.env',
     }),
-    MongooseModule.forRoot(process.env.MONGO_URI!),
+    MongooseModule.forRoot(process.env.MONGO_URI!, {
+      connectionFactory: (connection) => {
+        connection.on('connected', () => {
+          console.log('✅ Database connected successfully');
+        });
+        connection.on('error', (error) => {
+          console.error('❌ Database connection error:', error);
+        });
+        return connection;
+      },
+    }),
     AuthModule,
     UsersModule,
     QuizzesModule,
@@ -33,9 +44,13 @@ import { PerformanceModule } from './performance/performance.module';
     PerformanceModule,
   ],
   controllers: [AppController],
-  providers: [AppService , {
-    provide : APP_GUARD,
-    useClass : AccessTokenGuard
+  providers: [AppService, {
+    provide: APP_GUARD,
+    useClass: AccessTokenGuard,
   }],
 })
-export class AppModule {}
+export class AppModule implements NestModule {
+  configure(consumer: MiddlewareConsumer) {
+    consumer.apply(CookieLoggerMiddleware).forRoutes('*');
+  }
+}

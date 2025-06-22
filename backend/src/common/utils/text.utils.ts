@@ -1,39 +1,23 @@
 export class TextUtils {
-  /**
-   * Capitalizes the first letter of each word (Title Case)
-   * @param text - The text to capitalize
-   * @returns Capitalized text
-   */
-  static toTitleCase(text: string): string {
-    if (!text || typeof text !== 'string') return text;
-    
-    return text
-      .toLowerCase()
-      .split(' ')
-      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
-      .join(' ')
-      .trim();
+  static toTitleCase(str: string): string {
+    if (!str) return '';
+    return str.replace(/\w\S*/g, (txt) => 
+      txt.charAt(0).toUpperCase() + txt.substr(1).toLowerCase()
+    );
   }
 
-  /**
-   * Capitalizes only the first letter of the entire string
-   * @param text - The text to capitalize
-   * @returns Capitalized text
-   */
-  static toSentenceCase(text: string): string {
-    if (!text || typeof text !== 'string') return text;
-    
-    return text.charAt(0).toUpperCase() + text.slice(1).toLowerCase().trim();
+  static toSentenceCase(str: string): string {
+    if (!str) return '';
+    return str.charAt(0).toUpperCase() + str.slice(1).toLowerCase();
   }
 
-  /**
-   * Removes extra spaces and trims the text
-   * @param text - The text to clean
-   * @returns Cleaned text
-   */
-  static cleanText(text: string): string {
-    if (!text || typeof text !== 'string') return text;
-    
-    return text.replace(/\s+/g, ' ').trim();
+  static toCamelCase(str: string): string {
+    return str.replace(/(?:^\w|[A-Z]|\b\w)/g, (word, index) => {
+      return index === 0 ? word.toLowerCase() : word.toUpperCase();
+    }).replace(/\s+/g, '');
+  }
+
+  static sanitizeForSearch(str: string): string {
+    return str.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   }
 }

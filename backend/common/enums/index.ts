@@ -1,6 +1,6 @@
 export * from './difficulty.enum';
 export * from './recommendation-status.enum';
-// export * from './progress-trend.enum';
+export * from './progress-trend.enum';
 // export * from './user-preferences.enum';
 export * from './user-roles.enum';
 export * from './quiz-types.enum';
@@ -12,4 +12,5 @@ export * from './leaderboard-types.enum';
 // export * from './sort-order.enum';
 export * from './performance-metrics.enum';
 export * from './time-periods.enum';
+export * from './session-type.enum';
 // export * from './content-status.enum';

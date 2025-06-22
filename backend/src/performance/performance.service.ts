@@ -2,211 +2,115 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { UserPerformance } from './schema/performance.schema';
-// import { CreatePerformanceDto } from './dto/create-performance.dto';
-// import { UpdatePerformanceDto } from './dto/update-performance.dto';
+import { Attempt } from '../attempts/schema/attempts.schema';
+import { ProgressTrend } from 'common/enums';
 
 @Injectable()
 export class PerformanceService {
   constructor(
-    @InjectModel(UserPerformance.name) private performanceModel: Model<UserPerformance>
+    @InjectModel(UserPerformance.name) private performanceModel: Model<UserPerformance>,
+    @InjectModel(Attempt.name) private attemptModel: Model<Attempt>,
   ) {}
 
-//   async create(createPerformanceDto: CreatePerformanceDto): Promise<UserPerformance> {
-//     try {
-//       const newPerformance = new this.performanceModel(createPerformanceDto);
-//       return await newPerformance.save();
-//     } catch (error) {
-//       throw new Error(`Failed to create performance record: ${error.message}`);
-//     }
-//   }
+  async updatePerformance(userId: string, topicId: string, subjectId: string, attemptData: any): Promise<UserPerformance> {
+    try {
+      const performance = await this.performanceModel.findOneAndUpdate(
+        { userId: new Types.ObjectId(userId), topicId: new Types.ObjectId(topicId) },
+        {},
+        { upsert: true, new: true }
+      );
 
-  async findAll(): Promise<UserPerformance[]> {
-    return await this.performanceModel
-      .find()
-      .populate('userId', 'name email')
-      .populate('subjectId', 'subjectName')
-      .populate('topicId', 'topicName')
-      .exec();
-  }
+      // Calculate updated metrics
+      const recentAttempts = await this.attemptModel
+        .find({ userId: new Types.ObjectId(userId), topicId: new Types.ObjectId(topicId) })
+        .sort({ createdAt: -1 })
+        .limit(20)
+        .exec();
 
-  async findById(id: string): Promise<UserPerformance> {
-    if (!Types.ObjectId.isValid(id)) {
-      throw new NotFoundException('Invalid performance ID format');
-    }
+      const scores = recentAttempts.map(a => a.score || 0);
+      const averageScore = scores.length > 0 ? scores.reduce((a, b) => a + b, 0) / scores.length : 0;
+      const bestScore = Math.max(...scores, 0);
+      const worstScore = Math.min(...scores, 100);
 
-    const performance = await this.performanceModel
-      .findById(id)
-      .populate('userId', 'name email')
-      .populate('subjectId', 'subjectName')
-      .populate('topicId', 'topicName')
-      .exec();
-      
-    if (!performance) {
-      throw new NotFoundException('Performance record not found');
-    }
-    return performance;
-  }
+      // Calculate progress trend
+      const progressTrend = this.calculateProgressTrend(scores);
 
-  async findByUser(userId: string): Promise<UserPerformance[]> {
-    if (!Types.ObjectId.isValid(userId)) {
-      throw new NotFoundException('Invalid user ID format');
-    }
+      // Update performance document
+      performance.totalAttempts = recentAttempts.length;
+      performance.averageScore = averageScore;
+      performance.bestScore = bestScore;
+      performance.worstScore = worstScore;
+      performance.progressTrend = progressTrend;
+      performance.lastQuizAttempted = new Date();
+      performance.recentScores = scores.slice(0, 10);
+      performance.masteryLevel = this.calculateMasteryLevel(averageScore, recentAttempts.length);
+      performance.learningVelocity = this.calculateLearningVelocity(scores);
+      performance.lastUpdated = new Date();
 
-    return await this.performanceModel
-      .find({ userId })
-      .populate('subjectId', 'subjectName')
-      .populate('topicId', 'topicName')
-      .exec();
-  }
-
-  async findByUserAndSubject(userId: string, subjectId: string): Promise<UserPerformance[]> {
-    if (!Types.ObjectId.isValid(userId) || !Types.ObjectId.isValid(subjectId)) {
-      throw new NotFoundException('Invalid user or subject ID format');
-    }
-
-    return await this.performanceModel
-      .find({ userId, subjectId })
-      .populate('topicId', 'topicName')
-      .exec();
-  }
-
-  async findBySubject(subjectId: string): Promise<UserPerformance[]> {
-    if (!Types.ObjectId.isValid(subjectId)) {
-      throw new NotFoundException('Invalid subject ID format');
-    }
-
-    return await this.performanceModel
-      .find({ subjectId })
-      .populate('userId', 'name email')
-      .populate('topicId', 'topicName')
-      .exec();
-  }
-
-  async getTopPerformers(subjectId?: string, limit: number = 10): Promise<UserPerformance[]> {
-    const filter = subjectId ? { subjectId: new Types.ObjectId(subjectId) } : {};
-    
-    return await this.performanceModel
-      .find(filter)
-      .populate('userId', 'name email')
-      .populate('subjectId', 'subjectName')
-      .populate('topicId', 'topicName')
-      .sort({ averageScore: -1, bestScore: -1 })
-      .limit(limit)
-      .exec();
-  }
-
-  async getUserOverallPerformance(userId: string): Promise<any> {
-    if (!Types.ObjectId.isValid(userId)) {
-      throw new NotFoundException('Invalid user ID format');
-    }
-
-    const performance = await this.performanceModel.aggregate([
-      { $match: { userId: new Types.ObjectId(userId) } },
-      {
-        $group: {
-          _id: null,
-          totalAttempts: { $sum: '$totalAttempts' },
-          averageAccuracy: { $avg: '$accurracy' }, // Note: typo in schema field name
-          averageScore: { $avg: '$averageScore' },
-          bestScore: { $max: '$bestScore' },
-          worstScore: { $min: '$worstScore' },
-          subjectsCount: { $sum: 1 }
-        }
+      if (!performance.subjectId) {
+        performance.subjectId = new Types.ObjectId(subjectId);
       }
-    ]);
 
-    return performance[0] || {
-      totalAttempts: 0,
-      averageAccuracy: 0,
-      averageScore: 0,
-      bestScore: 0,
-      worstScore: 0,
-      subjectsCount: 0
-    };
+      return await performance.save();
+    } catch (error) {
+      console.error('Error updating performance:', error);
+      throw error;
+    }
   }
 
-  // async updatePerformanceFromAttempt(
-  //   userId: string,
-  //   subjectId: string,
-  //   topicId: string,
-  //   attemptData: any
-  // ): Promise<UserPerformance> {
-  //   if (!Types.ObjectId.isValid(userId) || !Types.ObjectId.isValid(subjectId) || !Types.ObjectId.isValid(topicId)) {
-  //     throw new NotFoundException('Invalid ID format');
-  //   }
+  async getUserPerformance(userId: string, topicId: string): Promise<UserPerformance | null> {
+    return await this.performanceModel
+      .findOne({ 
+        userId: new Types.ObjectId(userId), 
+        topicId: new Types.ObjectId(topicId) 
+      })
+      .exec();
+  }
 
-  //   let performance = await this.performanceModel.findOne({
-  //     userId,
-  //     subjectId,
-  //     topicId
-  //   });
+  async getUserTopicPerformances(userId: string): Promise<UserPerformance[]> {
+    return await this.performanceModel
+      .find({ userId: new Types.ObjectId(userId) })
+      .populate('topicId', 'name')
+      .populate('subjectId', 'name')
+      .sort({ lastUpdated: -1 })
+      .exec();
+  }
 
-  //   if (!performance) {
-  //     // Create new performance record
-  //     performance = new this.performanceModel({
-  //       userId,
-  //       subjectId,
-  //       topicId,
-  //       totalAttempts: 1,
-  //       accurracy: attemptData.accuracy,
-  //       averageScore: attemptData.score,
-  //       bestScore: attemptData.score,
-  //       worstScore: attemptData.score,
-  //       progressTrend: 'Steady',
-  //       lastQuizAttempted: new Date()
-  //     });
-  //   } else {
-  //     // Update existing performance record
-  //     const newTotalAttempts = performance.totalAttempts + 1;
-  //     const newAverageScore = ((performance.averageScore * performance.totalAttempts) + attemptData.score) / newTotalAttempts;
-  //     const newAverageAccuracy = ((performance.accurracy * performance.totalAttempts) + attemptData.accuracy) / newTotalAttempts;
+  private calculateProgressTrend(scores: number[]): ProgressTrend {
+    if (scores.length < 3) return ProgressTrend.STEADY;
 
-  //     performance.totalAttempts = newTotalAttempts;
-  //     performance.averageScore = Math.round(newAverageScore);
-  //     performance.accurracy = parseFloat(newAverageAccuracy.toFixed(2));
-  //     performance.bestScore = Math.max(performance.bestScore, attemptData.score);
-  //     performance.worstScore = Math.min(performance.worstScore, attemptData.score);
-  //     performance.lastQuizAttempted = new Date();
+    const recent = scores.slice(0, 3);
+    const older = scores.slice(3, 6);
 
-  //     // Determine progress trend (simplified logic)
-  //     if (attemptData.score > performance.averageScore) {
-  //       performance.progressTrend = 'Improving';
-  //     } else if (attemptData.score < performance.averageScore) {
-  //       performance.progressTrend = 'Declining';
-  //     } else {
-  //       performance.progressTrend = 'Steady';
-  //     }
-  //   }
+    if (older.length === 0) return ProgressTrend.STEADY;
 
-  //   return await performance.save();
-  // }
+    const recentAvg = recent.reduce((a, b) => a + b, 0) / recent.length;
+    const olderAvg = older.reduce((a, b) => a + b, 0) / older.length;
 
-//   async update(id: string, updatePerformanceDto: UpdatePerformanceDto): Promise<UserPerformance> {
-//     if (!Types.ObjectId.isValid(id)) {
-//       throw new NotFoundException('Invalid performance ID format');
-//     }
+    const difference = recentAvg - olderAvg;
 
-//     const updatedPerformance = await this.performanceModel
-//       .findByIdAndUpdate(id, updatePerformanceDto, { new: true })
-//       .populate('userId', 'name email')
-//       .populate('subjectId', 'subjectName')
-//       .populate('topicId', 'topicName')
-//       .exec();
+    if (difference > 5) return ProgressTrend.IMPROVING;
+    if (difference < -5) return ProgressTrend.DECLINING;
+    return ProgressTrend.STEADY;
+  }
 
-//     if (!updatedPerformance) {
-//       throw new NotFoundException('Performance record not found');
-//     }
-//     return updatedPerformance;
-//   }
+  private calculateMasteryLevel(averageScore: number, totalAttempts: number): number {
+    // Base mastery on average score with attempt count multiplier
+    const baseScore = Math.min(averageScore, 100);
+    const attemptMultiplier = Math.min(totalAttempts / 10, 1); // Max multiplier at 10 attempts
+    return Math.floor(baseScore * attemptMultiplier);
+  }
 
-  async remove(id: string): Promise<void> {
-    if (!Types.ObjectId.isValid(id)) {
-      throw new NotFoundException('Invalid performance ID format');
-    }
+  private calculateLearningVelocity(scores: number[]): number {
+    if (scores.length < 2) return 0;
 
-    const result = await this.performanceModel.findByIdAndDelete(id).exec();
-    if (!result) {
-      throw new NotFoundException('Performance record not found');
-    }
+    // Calculate rate of improvement over recent attempts
+    const recentScores = scores.slice(0, 5);
+    if (recentScores.length < 2) return 0;
+
+    const firstScore = recentScores[recentScores.length - 1];
+    const lastScore = recentScores[0];
+
+    return (lastScore - firstScore) / recentScores.length;
   }
 }

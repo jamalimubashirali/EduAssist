@@ -1,12 +1,19 @@
 import { Module } from '@nestjs/common';
+import { MongooseModule } from '@nestjs/mongoose';
 import { PerformanceService } from './performance.service';
 import { PerformanceController } from './performance.controller';
-import { MongooseModule } from '@nestjs/mongoose';
-import { UserPerformance, PerformanceSchema } from './schema/performance.schema';
+import { UserPerformance, UserPerformanceSchema } from './schema/performance.schema';
+import { Attempt, AttemptSchema } from '../attempts/schema/attempts.schema';
 
 @Module({
-  imports: [MongooseModule.forFeature([{ name: UserPerformance.name, schema: PerformanceSchema }])],
+  imports: [
+    MongooseModule.forFeature([
+      { name: UserPerformance.name, schema: UserPerformanceSchema },
+      { name: Attempt.name, schema: AttemptSchema }
+    ])
+  ],
   controllers: [PerformanceController],
   providers: [PerformanceService],
+  exports: [PerformanceService]
 })
-export class PerformanceModule { }
+export class PerformanceModule {}

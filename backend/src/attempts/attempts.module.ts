@@ -8,5 +8,6 @@ import { Attempt, AttemptSchema } from './schema/attempts.schema';
   imports: [MongooseModule.forFeature([{ name: Attempt.name, schema: AttemptSchema }])],
   controllers: [AttemptsController],
   providers: [AttemptsService],
+  exports: [AttemptsService]
 })
-export class AttemptsModule { }
+export class AttemptsModule {}

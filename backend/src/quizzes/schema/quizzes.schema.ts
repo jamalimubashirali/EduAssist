@@ -2,7 +2,7 @@ import { Prop, Schema, SchemaFactory } from "@nestjs/mongoose";
 import { HydratedDocument, SchemaTypes, Types } from "mongoose";
 import { DifficultyLevel, QuizType } from 'common/enums';
 
-export type QuizSchema = HydratedDocument<Quiz>;
+export type QuizDocument = HydratedDocument<Quiz>;
 
 @Schema({ timestamps: true })
 export class Quiz {
@@ -27,8 +27,47 @@ export class Quiz {
     @Prop()
     description?: string;
 
-    @Prop({ default: 30 }) // Default 30 minutes
-    timeLimit: number; // in minutes
+    @Prop({ default: 30 })
+    timeLimit: number;
+
+    // Personalization fields
+    @Prop({ type: String })
+    sessionId?: string;
+
+    @Prop({ type: Boolean, default: false })
+    isPersonalized: boolean;
+
+    @Prop({ type: SchemaTypes.ObjectId, ref: 'User' })
+    createdBy?: Types.ObjectId;
+
+    @Prop({ type: Object })
+    personalizationMetadata?: {
+        userId: Types.ObjectId;
+        difficultyDistribution: Record<string, number>;
+        focusAreas: string[];
+        generatedAt: Date;
+        userLevel: number;
+        masteryScore: number;
+    };
+
+    // Usage statistics
+    @Prop({ type: Number, default: 0 })
+    attemptCount: number;
+
+    @Prop({ type: Number, default: 0 })
+    averageScore: number;
+
+    @Prop({ type: Number, default: 0 })
+    averageCompletionTime: number;
+
+    @Prop({ type: Boolean, default: true })
+    isActive: boolean;
 }
 
 export const QuizSchema = SchemaFactory.createForClass(Quiz);
+
+// Indexes for performance
+QuizSchema.index({ topicId: 1, isActive: 1 });
+QuizSchema.index({ sessionId: 1 }, { unique: true, sparse: true });
+QuizSchema.index({ createdBy: 1, createdAt: -1 });
+QuizSchema.index({ isPersonalized: 1, 'personalizationMetadata.userId': 1 });

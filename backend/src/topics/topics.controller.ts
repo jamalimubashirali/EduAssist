@@ -11,7 +11,7 @@ export class TopicsController {
 
   @Post("create-topic")
   @HttpCode(HttpStatus.CREATED)
-  async createTopic(@Body() createTopicDto: CreateTopicDto) : Promise<Topic> {
+  async createTopic(@Body() createTopicDto: CreateTopicDto) : Promise<Topic | null> {
     return this.topicsService.create(createTopicDto);
   }
 
@@ -42,7 +42,7 @@ export class TopicsController {
   @Delete('remove-topic/:topicId')
   @HttpCode(HttpStatus.OK)
   async removeTopic(@Param('topicId') topicId: string): Promise<{ deleted: boolean , message?: string }> {
-    const deleted = await this.topicsService.remove(topicId);
+    const deleted : boolean = await this.topicsService.remove(topicId);
     return {
       deleted,
       message : deleted ? 'Topic deleted successfully' : 'Topic not found'

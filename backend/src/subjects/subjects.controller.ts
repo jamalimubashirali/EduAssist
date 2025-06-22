@@ -4,7 +4,7 @@ import { Subject } from './schema/subjects.schema';
 import { CreateSubjectDto } from './dto/createSubject.dto';
 import { UpdateSubjectDto } from './dto/updateSubject.dto';
 import { SubjectStats } from 'common/types';
-import { TextUtils } from 'src/common/utils/text.utils';
+import { TextUtils } from 'common/utils/text.utils';
 
 @Controller('subjects')
 export class SubjectsController {
