@@ -211,7 +211,32 @@ export class AttemptsService {
       .populate('topicId', 'topicName')
       .exec();
 
+    // Auto-generate recommendation after completing attempt
+    if (updatedAttempt) {
+      try {
+        await this.generateRecommendationForAttempt(updatedAttempt);
+      } catch (error) {
+        console.warn('Failed to generate recommendation:', error.message);
+      }
+    }
+
     return updatedAttempt;
+  }
+
+  private async generateRecommendationForAttempt(attempt: Attempt): Promise<void> {
+    // This would integrate with RecommendationsService
+    // For now, we'll simulate the integration
+    const recommendationData = {
+      userId: attempt.userId.toString(),
+      attemptId: attempt._id.toString(),
+      subjectId: attempt.subjectId?.toString() || '',
+      topicId: attempt.topicId.toString(),
+      attemptScore: attempt.score || 0,
+      averageScore: 65 // This would be calculated from user's performance
+    };
+
+    // In a real implementation, you would inject RecommendationsService
+    // and call: await this.recommendationsService.generateRecommendationFromAttempt(...)
   }
 
   async update(id: string, updateAttemptDto: UpdateAttemptDto): Promise<Attempt> {
