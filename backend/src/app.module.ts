@@ -14,7 +14,7 @@ import { TopicsModule } from './topics/topics.module';
 import { AttemptsModule } from './attempts/attempts.module';
 import { RecommendationsModule } from './recommendations/recommendations.module';
 import { PerformanceModule } from './performance/performance.module';
-import { CookieLoggerMiddleware } from './common/middleware/cookie-logger.middleware';
+import { CookieLoggerMiddleware } from '../common/middleware/cookie-logger.middleware';
 
 @Module({
   imports: [

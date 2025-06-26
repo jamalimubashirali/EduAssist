@@ -36,7 +36,7 @@ export class RecommendationsController {
     return this.recommendationsService.autoGenerateRecommendation(attemptId);
   }
 
-  @Get('all')
+  @Get('all-recommendations')
   @HttpCode(HttpStatus.OK)
   async findAll() {
     return this.recommendationsService.findAll();
