@@ -181,6 +181,7 @@ export class UsersService {
     }
 
     // Assessment and onboarding methods
+    // ...existing code...
     async submitAssessment(body: {
         user_id: string;
         answers: Array<{
@@ -191,12 +192,15 @@ export class UsersService {
         started_at: string;
         completed_at: string;
     }): Promise<any> {
+        console.log('[submitAssessment] invoked', { user_id: body?.user_id, totalAnswers: body?.answers?.length })
         try {
             // Validate user_id and answers
             if (!Types.ObjectId.isValid(body.user_id)) {
+                console.log('[submitAssessment] invalid user_id', body.user_id)
                 throw new Error('Invalid user_id');
             }
             if (!body.answers || !Array.isArray(body.answers) || body.answers.length === 0) {
+                console.log('[submitAssessment] no answers provided')
                 throw new Error('No answers provided');
             }
 
@@ -216,12 +220,17 @@ export class UsersService {
             // Validate answers against correct answers by querying questions
             for (const answer of body.answers) {
                 if (!Types.ObjectId.isValid(answer.question_id)) {
-                    console.error(`Invalid question_id: ${answer.question_id}`);
+                    console.log('[submitAssessment] Invalid question_id, skipping', answer.question_id);
                     continue;
                 }
                 try {
                     const question = await this.questionsService.findById(answer.question_id);
+                    if (!question) {
+                        console.log('[submitAssessment] question not found, skipping', answer.question_id);
+                        continue;
+                    }
                     const isCorrect = answer.user_answer === question.correctAnswer;
+                    console.log('[submitAssessment] question checked', { questionId: answer.question_id, isCorrect })
                     if (isCorrect) {
                         correctAnswers++;
                     }
@@ -233,7 +242,7 @@ export class UsersService {
                         const subject = await this.subjectService.findById(subjectId);
                         subjectName = subject?.subjectName || subjectName;
                     } catch (err) {
-                        console.error(`Error fetching subject name for subjectId ${subjectId}:`, err);
+                        console.log('[submitAssessment] Error fetching subject name', { subjectId, err: err?.message || err })
                     }
                     // Track subject performance
                     if (!subjectStats.has(subjectId)) {
@@ -260,13 +269,14 @@ export class UsersService {
                         topicId
                     });
                 } catch (error) {
-                    console.error(`Error validating question ${answer.question_id}:`, error);
+                    console.log('[submitAssessment] Error validating question, continuing', { questionId: answer.question_id, err: error?.message || error })
                     // Continue with other questions even if one fails
                 }
             }
 
             // Prevent division by zero
             const overallScore = totalQuestions > 0 ? Math.round((correctAnswers / totalQuestions) * 100) : 0;
+            console.log('[submitAssessment] score computed', { totalQuestions, correctAnswers, overallScore })
 
             // Determine proficiency level
             let proficiency = 'BEGINNER';
@@ -295,7 +305,7 @@ export class UsersService {
                                 const topic = await this.topicService.findById(topicId);
                                 topicName = topic?.topicName || topicName;
                             } catch (err) {
-                                console.error(`Error fetching topic name for topicId ${topicId}:`, err);
+                                console.log('[submitAssessment] Error fetching topic name', { topicId, err: err?.message || err })
                             }
                             topicPerformance.set(topicId, { correct: 0, total: 0, name: topicName });
                         }
@@ -338,6 +348,8 @@ export class UsersService {
                     };
                 })
             );
+
+            console.log('[submitAssessment] subjectAnalysis ready', { subjects: subjectAnalysis.length })
 
             // Generate personalized recommendations with real subject names
             const weakSubjects = subjectAnalysis.filter(s => s.score_percentage < 60);
@@ -397,6 +409,8 @@ export class UsersService {
                 question_details: questionDetails
             };
 
+            console.log('[submitAssessment] results assembled', { overall_score: results.overall_score, xp_earned: results.xp_earned })
+
             // --- Create Assessment Attempt Record ---
             let attemptId: string | null = null;
             try {
@@ -436,18 +450,19 @@ export class UsersService {
                     }
                 };
 
+                console.log('[submitAssessment] saving attempt record', { userId: body.user_id, totalQuestions })
                 const newAttempt = new this.attemptModel(attemptData);
                 const savedAttempt = await newAttempt.save();
                 attemptId = savedAttempt._id.toString();
-
-
+                console.log('[submitAssessment] attempt saved', { attemptId })
             } catch (error) {
-                console.error('Error recording assessment attempt:', error);
+                console.log('[submitAssessment] Error recording assessment attempt (continuing)', error?.message || error);
                 // Continue without failing the assessment
             }
 
             // Store assessment results for performance tracking
             try {
+                console.log('[submitAssessment] updating performance records', { detailsCount: questionDetails.length })
                 for (const detail of questionDetails) {
                     await this.performanceService.updatePerformance(
                         body.user_id,
@@ -461,26 +476,33 @@ export class UsersService {
                         }
                     );
                 }
+                console.log('[submitAssessment] performance records updated')
             } catch (error) {
-                console.error('Error storing performance data:', error);
+                console.log('[submitAssessment] Error storing performance data (continuing)', error?.message || error);
                 // Don't fail the assessment if performance tracking fails
             }
 
             // --- Generate Real-time Intelligent Recommendations ---
+            console.log('[submitAssessment] generating intelligent recommendations', { attemptId })
             const intelligentRecommendations = await this.generateIntelligentRecommendations(
                 body.user_id,
                 results,
                 attemptId
             );
+            console.log('[submitAssessment] intelligent recommendations generated', { count: intelligentRecommendations.length })
 
             // --- Enhanced Onboarding Data Storage ---
+            console.log('[submitAssessment] updating onboarding assessment data')
             await this.updateOnboardingAssessmentData(body.user_id, results);
+            console.log('[submitAssessment] onboarding data updated')
 
             // --- Gamification & Progress Update ---
+            console.log('[submitAssessment] updating gamification metrics')
             const gamificationUpdate = await this.updateGamificationFromAssessment(
                 body.user_id,
                 results
             );
+            console.log('[submitAssessment] gamification updated', gamificationUpdate)
 
             // Return comprehensive results
             return {
@@ -491,9 +513,11 @@ export class UsersService {
                 recommendations: recommendations // Keep original recommendations for backward compatibility
             };
         } catch (error) {
+            console.log('[submitAssessment] failed', { error: error?.message || error })
             throw new Error(`Failed to submit assessment: ${error.message}`);
         }
     }
+
 
     // Generate intelligent recommendations based on assessment results
     private async generateIntelligentRecommendations(userId: string, assessmentResults: any, attemptId: string | null): Promise<any[]> {
