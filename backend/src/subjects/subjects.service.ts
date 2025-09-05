@@ -98,7 +98,6 @@ export class SubjectsService {
 
     return true;
   }
-
   async getSubjectStats(id: string): Promise<{ subjectStats: SubjectStats; message: string }> {
     if (!Types.ObjectId.isValid(id)) {
       throw new NotFoundException('Invalid subject ID format');
@@ -149,5 +148,18 @@ export class SubjectsService {
       subjectStats: subjectStats.length > 0 ? subjectStats[0] : null,
       message: subjectStats.length > 0 ? 'Subject stats retrieved successfully' : 'No stats found for this subject',
     };
+  }
+
+  async searchSubjects(query: string): Promise<Subject[]> {
+    if (!query || query.trim().length === 0) {
+      return [];
+    }
+
+    return await this.subjectModel.find({
+      $or: [
+        { subjectName: { $regex: query, $options: 'i' } },
+        { subjectDescription: { $regex: query, $options: 'i' } }
+      ]
+    }).exec();
   }
 }

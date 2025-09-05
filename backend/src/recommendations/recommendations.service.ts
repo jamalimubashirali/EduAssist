@@ -151,66 +151,126 @@ export class RecommendationsService {
     userId: string,
     attemptId: string,
     subjectId: string,
-    topicId: string,
+    topicId: string | null,
     attemptScore: number,
     averageScore: number
   ): Promise<Recommendation | null> {
-    let recommendationReason = '';
-    let suggestedDifficulty: DifficultyLevel = DifficultyLevel.MEDIUM;
+    try {
+      // Get user's onboarding data for personalized recommendations
+      const userOnboardingData = await this.getUserOnboardingData(userId);
+      
+      let recommendationReason = '';
+      let recommendationTitle = '';
+      let suggestedDifficulty: DifficultyLevel = DifficultyLevel.MEDIUM;
+      let priority = this.calculateAttemptPriority({ attemptScore, averageScore });
+      let urgency = this.calculateUrgency({ createdAt: new Date() } as any);
 
-    // Enhanced recommendation logic based on performance analysis
-    if (attemptScore < 40) {
-      recommendationReason = 'Based on your recent quiz performance, we recommend reviewing the fundamental concepts and practicing with easier questions to build a strong foundation.';
-      suggestedDifficulty = DifficultyLevel.EASY;
-    } else if (attemptScore < 60) {
-      recommendationReason = 'Your performance shows you understand the basics but need more practice. Focus on medium-difficulty questions to strengthen your knowledge.';
-      suggestedDifficulty = DifficultyLevel.MEDIUM;
-    } else if (attemptScore < 80) {
-      recommendationReason = 'Good performance! Continue practicing at the current level and gradually introduce more challenging questions.';
-      suggestedDifficulty = DifficultyLevel.MEDIUM;
-    } else if (attemptScore >= 85) {
-      recommendationReason = 'Excellent performance! You\'re ready to challenge yourself with more difficult questions in this topic.';
-      suggestedDifficulty = DifficultyLevel.HARD;
-    } else {
-      recommendationReason = 'Good work! Keep practicing to maintain and improve your understanding.';
-      suggestedDifficulty = DifficultyLevel.MEDIUM;
+      // Enhanced recommendation logic based on performance analysis and onboarding data
+      const personalizedRecommendation = this.generatePersonalizedRecommendation(
+        attemptScore,
+        averageScore,
+        userOnboardingData
+      );
+
+      recommendationTitle = personalizedRecommendation.title;
+      recommendationReason = personalizedRecommendation.reason;
+      suggestedDifficulty = personalizedRecommendation.difficulty;
+      priority = personalizedRecommendation.priority;
+
+      // Adjust based on performance trend
+      const performanceTrend = attemptScore - averageScore;
+      if (performanceTrend > 15) {
+        recommendationReason += ' Your performance is significantly improving - excellent progress!';
+        if (suggestedDifficulty === DifficultyLevel.EASY) {
+          suggestedDifficulty = DifficultyLevel.MEDIUM;
+        } else if (suggestedDifficulty === DifficultyLevel.MEDIUM) {
+          suggestedDifficulty = DifficultyLevel.HARD;
+        }
+      } else if (performanceTrend < -15) {
+        recommendationReason += ' Consider reviewing previous materials and taking practice quizzes before attempting new topics.';
+        if (suggestedDifficulty === DifficultyLevel.HARD) {
+          suggestedDifficulty = DifficultyLevel.MEDIUM;
+        } else if (suggestedDifficulty === DifficultyLevel.MEDIUM) {
+          suggestedDifficulty = DifficultyLevel.EASY;
+        }
+        priority = Math.min(priority + 25, 100);
+      }
+
+      // Create enhanced recommendation with metadata
+      const recommendationData = {
+        userId: new Types.ObjectId(userId),
+        subjectId: new Types.ObjectId(subjectId),
+        topicId: topicId ? new Types.ObjectId(topicId) : null,
+        attemptId: new Types.ObjectId(attemptId),
+        title: recommendationTitle,
+        description: recommendationReason.split('.')[0] + '.',
+        recommendationReason,
+        suggestedDifficulty,
+        recommendationStatus: RecommendationStatus.PENDING,
+        priority,
+        urgency,
+        estimatedCompletionTime: this.estimateCompletionTime({ suggestedDifficulty } as any),
+        metadata: {
+          generatedBy: 'enhanced_ai_system',
+          algorithmVersion: '2.0',
+          confidence: this.calculateConfidence(attemptScore, averageScore),
+          relatedRecommendations: [],
+          attemptScore,
+          averageScore,
+          performanceTrend,
+          improvementPotential: Math.max(0, 85 - attemptScore),
+          weaknessScore: Math.max(0, 70 - attemptScore),
+          source: 'attempt_analysis_enhanced',
+          generatedAt: new Date(),
+          learningStyle: userOnboardingData?.learningStyle || 'BALANCED',
+          personalizedFactors: personalizedRecommendation.factors
+        }
+      };
+
+      const newRecommendation = new this.recommendationModel(recommendationData);
+      const savedRecommendation = await newRecommendation.save();
+      
+      return await this.recommendationModel
+        .findById(savedRecommendation._id)
+        .populate('subjectId', 'subjectName')
+        .populate('topicId', 'topicName')
+        .populate('attemptId', 'score timeTaken')
+        .exec();
+    } catch (error) {
+      console.error('Error saving recommendation:', error);
+      return null;
+    }
+  }
+
+  // Calculate confidence score based on performance data
+  private calculateConfidence(attemptScore: number, averageScore: number): number {
+    const baseConfidence = 0.5;
+    const scoreReliability = Math.min(attemptScore / 100, 1);
+    const trendReliability = Math.abs(attemptScore - averageScore) < 20 ? 0.8 : 0.6;
+    
+    return Math.min(baseConfidence + (scoreReliability * 0.3) + (trendReliability * 0.2), 1);
+  }
+
+  // Enhanced priority calculation for attempt data
+  private calculateAttemptPriority(data: { attemptScore: number; averageScore: number }): number {
+    let priority = 50; // Base priority
+
+    // Higher priority for struggling performance
+    if (data.attemptScore < 50) {
+      priority += 40;
+    } else if (data.attemptScore < 70) {
+      priority += 20;
     }
 
     // Adjust based on performance trend
-    if (attemptScore > averageScore + 15) {
-      recommendationReason += ' Your performance is significantly improving - excellent progress!';
-      if (suggestedDifficulty === DifficultyLevel.EASY) {
-        suggestedDifficulty = DifficultyLevel.MEDIUM;
-      } else if (suggestedDifficulty === DifficultyLevel.MEDIUM) {
-        suggestedDifficulty = DifficultyLevel.HARD;
-      }
-    } else if (attemptScore < averageScore - 15) {
-      recommendationReason += ' Consider reviewing previous materials and taking practice quizzes before attempting new topics.';
-      if (suggestedDifficulty === DifficultyLevel.HARD) {
-        suggestedDifficulty = DifficultyLevel.MEDIUM;
-      } else if (suggestedDifficulty === DifficultyLevel.MEDIUM) {
-        suggestedDifficulty = DifficultyLevel.EASY;
-      }
+    const trend = data.attemptScore - data.averageScore;
+    if (trend < -20) {
+      priority += 30; // Declining performance needs urgent attention
+    } else if (trend > 20) {
+      priority += 10; // Improving performance deserves recognition
     }
 
-    const newRecommendation = new this.recommendationModel({
-      userId: new Types.ObjectId(userId),
-      subjectId: new Types.ObjectId(subjectId),
-      topicId: new Types.ObjectId(topicId),
-      attemptId: new Types.ObjectId(attemptId),
-      recommendationReason,
-      suggestedDifficulty,
-      recommendationStatus: RecommendationStatus.PENDING
-    });
-
-    const savedRecommendation = await newRecommendation.save();
-    
-    return await this.recommendationModel
-      .findById(savedRecommendation._id)
-      .populate('subjectId', 'subjectName')
-      .populate('topicId', 'topicName')
-      .populate('attemptId', 'score timeTaken')
-      .exec();
+    return Math.min(priority, 100);
   }
 
   async autoGenerateRecommendation(attemptId: string): Promise<Recommendation | null> {
@@ -487,5 +547,112 @@ export class RecommendationsService {
       case DifficultyLevel.HARD: return 40;
       default: return 20;
     }
+  }
+
+  // Get user's onboarding data for personalized recommendations
+  private async getUserOnboardingData(userId: string): Promise<any> {
+    try {
+      // This would typically fetch from the user model
+      // For now, we'll return a mock structure
+      return {
+        learningStyle: 'BALANCED',
+        proficiencyLevel: 'INTERMEDIATE',
+        weakAreas: [],
+        strongAreas: [],
+        preferredDifficulty: 'MEDIUM',
+        studyTimePerDay: 30,
+        targetScore: 75
+      };
+    } catch (error) {
+      console.error('Error fetching user onboarding data:', error);
+      return null;
+    }
+  }
+
+  // Generate personalized recommendation based on user profile and performance
+  private generatePersonalizedRecommendation(
+    attemptScore: number,
+    averageScore: number,
+    onboardingData: any
+  ): any {
+    const learningStyle = onboardingData?.learningStyle || 'BALANCED';
+    const proficiencyLevel = onboardingData?.proficiencyLevel || 'INTERMEDIATE';
+    
+    let title = '';
+    let reason = '';
+    let difficulty = DifficultyLevel.MEDIUM;
+    let priority = 50;
+    const factors = [];
+
+    // Base recommendation on score
+    if (attemptScore < 40) {
+      title = 'Foundation Building Required';
+      reason = 'Your recent performance indicates a need to strengthen fundamental concepts. ';
+      difficulty = DifficultyLevel.EASY;
+      priority = 80;
+      factors.push('low_performance');
+    } else if (attemptScore < 60) {
+      title = 'Skill Development Focus';
+      reason = 'You understand the basics but need more practice to build confidence. ';
+      difficulty = DifficultyLevel.MEDIUM;
+      priority = 70;
+      factors.push('developing_skills');
+    } else if (attemptScore < 80) {
+      title = 'Steady Progress Path';
+      reason = 'Good performance! Continue building on your current understanding. ';
+      difficulty = DifficultyLevel.MEDIUM;
+      priority = 50;
+      factors.push('steady_progress');
+    } else {
+      title = 'Advanced Challenge Ready';
+      reason = 'Excellent work! You\'re ready for more challenging material. ';
+      difficulty = DifficultyLevel.HARD;
+      priority = 30;
+      factors.push('high_performance');
+    }
+
+    // Adjust based on learning style
+    if (learningStyle === 'ANALYTICAL') {
+      reason += 'Given your analytical learning style, focus on understanding the underlying principles and step-by-step problem solving. ';
+      factors.push('analytical_learner');
+    } else if (learningStyle === 'INTUITIVE') {
+      reason += 'As an intuitive learner, try varied question types and gamified practice sessions. ';
+      factors.push('intuitive_learner');
+    } else if (learningStyle === 'NEEDS_SUPPORT') {
+      reason += 'We recommend starting with guided examples and visual learning aids to build confidence. ';
+      difficulty = Math.max(0, difficulty - 1) as DifficultyLevel; // Lower difficulty
+      priority += 20;
+      factors.push('needs_support');
+    }
+
+    // Adjust based on proficiency level
+    if (proficiencyLevel === 'BEGINNER' && difficulty === DifficultyLevel.HARD) {
+      difficulty = DifficultyLevel.MEDIUM;
+      reason += 'We\'ve adjusted the difficulty to match your current proficiency level. ';
+      factors.push('proficiency_adjusted');
+    } else if (proficiencyLevel === 'ADVANCED' && difficulty === DifficultyLevel.EASY) {
+      difficulty = DifficultyLevel.MEDIUM;
+      reason += 'Based on your advanced proficiency, we\'re recommending a slightly higher challenge level. ';
+      factors.push('proficiency_enhanced');
+    }
+
+    // Performance trend consideration
+    const trend = attemptScore - averageScore;
+    if (trend > 10) {
+      reason += 'Your improving trend shows you\'re ready for the next level! ';
+      factors.push('improving_trend');
+    } else if (trend < -10) {
+      reason += 'Let\'s focus on consolidating your knowledge before advancing. ';
+      factors.push('declining_trend');
+      priority += 15;
+    }
+
+    return {
+      title,
+      reason: reason.trim(),
+      difficulty,
+      priority: Math.min(priority, 100),
+      factors
+    };
   }
 }

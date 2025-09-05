@@ -6,6 +6,7 @@ import { Question } from '../questions/schema/questions.schema';
 import { UserPerformance } from '../performance/schema/performance.schema';
 import { Attempt } from '../attempts/schema/attempts.schema';
 import { User } from '../users/schema/user.schema';
+import { Topic } from '../topics/schema/topics.schema';
 import { CreateQuizDto } from './dto/create-quiz.dto';
 import { UpdateQuizDto } from './dto/update-quiz.dto';
 import { DifficultyLevel, QuizType, ProgressTrend } from 'common/enums';
@@ -43,6 +44,7 @@ interface UserAnalysis {
   lastAttemptDate: Date;
   averageTimePerQuestion: number;
   streakCount: number;
+  recommendedDifficulty?: 'beginner' | 'intermediate' | 'advanced';
 }
 
 interface QuestionSelectionStrategy {
@@ -59,13 +61,13 @@ interface QuestionSelectionStrategy {
 @Injectable()
 export class QuizzesService {
   private quizCache = new Map<string, { quiz: Quiz | null; questions: Question[]; timestamp: number }>();
-
   constructor(
     @InjectModel(Quiz.name) private quizModel: Model<Quiz>,
     @InjectModel(Question.name) private questionModel: Model<Question>,
     @InjectModel(UserPerformance.name) private performanceModel: Model<UserPerformance>,
     @InjectModel(Attempt.name) private attemptModel: Model<Attempt>,
     @InjectModel(User.name) private userModel: Model<User>,
+    @InjectModel(Topic.name) private topicModel: Model<Topic>,
   ) {}
 
   async create(createQuizDto: CreateQuizDto): Promise<Quiz | null> {
@@ -81,22 +83,39 @@ export class QuizzesService {
         throw new BadRequestException('Invalid topic ID provided');
       }
 
+      // Deduplicate question IDs
+      const uniqueQIds = Array.from(new Set(createQuizDto.questionIds.map(String)));
+
       // Convert string IDs to ObjectId for MongoDB compatibility
-      const quizData = {
+      const quizData: any = {
         ...createQuizDto,
         topicId: new Types.ObjectId(createQuizDto.topicId),
-        questionIds: createQuizDto.questionIds.map(id => new Types.ObjectId(id))
+        questionIds: uniqueQIds.map(id => new Types.ObjectId(id))
       };
+      if ((createQuizDto as any).createdBy && Types.ObjectId.isValid((createQuizDto as any).createdBy)) {
+        quizData.createdBy = new Types.ObjectId((createQuizDto as any).createdBy)
+      }
 
       const newQuiz = new this.quizModel(quizData);
-      const savedQuiz = await newQuiz.save();
-
-      // Return the quiz with populated fields for consistency
-      return await this.quizModel
-        .findById(savedQuiz._id)
-        .populate('topicId', 'topicName topicDescription')
-        .populate('questionIds', 'questionText questionDifficulty answerOptions correctAnswer')
-        .exec();
+      try {
+        const savedQuiz = await newQuiz.save();
+        return await this.quizModel
+          .findById(savedQuiz._id)
+          .populate('topicId', 'topicName topicDescription')
+          .populate('questionIds', 'questionText questionDifficulty answerOptions correctAnswer')
+          .exec();
+      } catch (e: any) {
+        // Handle unique sessionId conflict by returning existing
+        if (e?.code === 11000 && createQuizDto.sessionId) {
+          const existing = await this.quizModel
+            .findOne({ sessionId: createQuizDto.sessionId })
+            .populate('topicId', 'topicName topicDescription')
+            .populate('questionIds', 'questionText questionDifficulty answerOptions correctAnswer')
+            .exec();
+          if (existing) return existing as any;
+        }
+        throw e;
+      }
     } catch (error) {
       if (error instanceof BadRequestException) {
         throw error;
@@ -149,7 +168,6 @@ export class QuizzesService {
       .populate('questionIds', 'questionText questionDifficulty answerOptions correctAnswer')
       .exec();
   }
-
   async getQuizForAttempt(id: string): Promise<Quiz> {
     if (!Types.ObjectId.isValid(id)) {
       throw new NotFoundException('Invalid quiz ID format');
@@ -165,6 +183,46 @@ export class QuizzesService {
       throw new NotFoundException('Quiz not found');
     }
     return quiz;
+  }
+
+  async getQuizzesBySubject(subjectId: string, limit: number = 10): Promise<Quiz[]> {
+    if (!Types.ObjectId.isValid(subjectId)) {
+      throw new NotFoundException('Invalid subject ID format');
+    }
+
+    try {
+      // Step 1: Find all topics that belong to the given subject
+      const topics = await this.topicModel
+        .find({ subjectId: new Types.ObjectId(subjectId) })
+        .select('_id')
+        .exec();
+
+      if (topics.length === 0) {
+        return []; // No topics found for this subject
+      }
+
+      // Step 2: Extract topic IDs
+      const topicIds = topics.map(topic => topic._id);      // Step 3: Find quizzes that belong to any of these topics
+      const quizzes = await this.quizModel
+        .find({ topicId: { $in: topicIds } })
+        .populate({
+          path: 'topicId',
+          select: 'topicName topicDescription subjectId',
+          populate: {
+            path: 'subjectId',
+            select: 'subjectName subjectDescription'
+          }
+        })
+        .populate('questionIds', 'questionText questionDifficulty answerOptions correctAnswer')
+        .limit(limit)
+        .sort({ createdAt: -1 }) // Sort by newest first
+        .exec();
+
+      return quizzes;
+    } catch (error) {
+      console.error('Error getting quizzes by subject:', error);
+      throw new BadRequestException(`Failed to get quizzes by subject: ${error.message}`);
+    }
   }
 
     async update(id: string, updateQuizDto: UpdateQuizDto): Promise<Quiz> {
@@ -213,11 +271,12 @@ export class QuizzesService {
       throw new NotFoundException('Quiz not found');
     }
 
-    if (quiz.questionIds.includes(new Types.ObjectId(questionId))) {
+    if (quiz.questionIds.some(id => id.equals(new Types.ObjectId(questionId)))) {
       throw new BadRequestException('Question already exists in this quiz');
     }
 
     quiz.questionIds.push(new Types.ObjectId(questionId));
+    quiz.questionIds = quiz.questionIds.filter((id, idx, arr) => arr.findIndex(x => x.equals(id)) === idx)
     return await quiz.save();
   }
 
@@ -239,13 +298,25 @@ export class QuizzesService {
    * PERSONALIZED QUIZ GENERATION - Main Algorithm
    */
   async generatePersonalizedQuiz(config: PersonalizedQuizConfig): Promise<QuizGenerationResult> {
+    console.log('🎯 [QUIZ GENERATION] Starting personalized quiz generation');
+    console.log('📋 [CONFIG]', JSON.stringify(config, null, 2));
+
     try {
-      // Step 1: Create deterministic session ID for consistency
-      const sessionId = this.generateDeterministicSessionId(config);
-      
-      // Step 2: Check cache first
+      // Step 1: Analyze user performance (we'll derive a difficulty key from this)
+      console.log('📊 [ANALYSIS] Analyzing user performance for userId:', config.userId, 'topicId:', config.topicId);
+      const userAnalysis = await this.analyzeUserPerformance(config.userId, config.topicId);
+      console.log('📈 [ANALYSIS] User analysis result:', JSON.stringify(userAnalysis, null, 2));
+
+      // Step 2: Create deterministic session ID including a difficulty key so same params reuse the same quiz
+      const recommended = (userAnalysis.recommendedDifficulty || 'intermediate');
+      const difficultyKey = recommended === 'beginner' ? 'Easy' : recommended === 'advanced' ? 'Hard' : 'Medium';
+      const sessionId = this.generateDeterministicSessionId(config, difficultyKey);
+      console.log('🔑 [SESSION] Generated session ID:', sessionId);
+
+      // Step 3: Check cache first
       const cached = this.quizCache.get(sessionId);
       if (cached && Date.now() - cached.timestamp < 3600000) { // 1 hour cache
+        console.log('💾 [CACHE] Found cached quiz, returning cached result');
         return {
           quiz: cached.quiz,
           questions: cached.questions,
@@ -258,30 +329,106 @@ export class QuizzesService {
           }
         };
       }
-      
-      // Step 3: Analyze user performance
-      const userAnalysis = await this.analyzeUserPerformance(config.userId, config.topicId);
-      
+
+      console.log('🔍 [CACHE] No cached quiz found, generating new quiz');
+
       // Step 4: Generate question selection strategy
+      console.log('🎲 [STRATEGY] Creating question selection strategy');
       const strategy = this.createQuestionSelectionStrategy(userAnalysis, config);
-      
+      console.log('🎯 [STRATEGY] Strategy created:', JSON.stringify(strategy, null, 2));
+
       // Step 5: Select questions using deterministic algorithm
-      const selectedQuestions = await this.selectQuestionsWithStrategy(strategy, sessionId);
-      
+      console.log('🔍 [SELECTION] Selecting questions with strategy');
+      let selectedQuestions = await this.selectQuestionsWithStrategy(strategy, sessionId, config.sessionType, config.subjectId);
+      console.log(`📝 [SELECTION] Selected ${selectedQuestions.length} questions using strategy`);
+
+      // Fallback: If no questions found, try to fetch any active questions for topic
       if (selectedQuestions.length === 0) {
-        throw new BadRequestException('No questions available for the specified criteria');
+        console.warn(`⚠️ [FALLBACK] No questions found by strategy for topic ${config.topicId}. Trying fallback: any active questions for topic.`);
+        selectedQuestions = await this.questionModel.find({
+          topicId: new Types.ObjectId(config.topicId),
+          isActive: true
+        }).limit(config.questionsCount).exec();
+        console.log(`📝 [FALLBACK] Found ${selectedQuestions.length} questions for topic ${config.topicId}`);
       }
-      
-      // Step 6: Create the quiz
+      // Fallback: If still none, try any active questions for subject
+      if (selectedQuestions.length === 0 && config.subjectId) {
+        console.warn(`⚠️ [FALLBACK] No questions found for topic. Trying fallback: any active questions for subject ${config.subjectId}.`);
+        // Find all topics for subject
+        const topics = await this.topicModel.find({ subjectId: new Types.ObjectId(config.subjectId) }).select('_id').exec();
+        console.log(`📚 [FALLBACK] Found ${topics.length} topics for subject ${config.subjectId}`);
+        const topicIds = topics.map(t => t._id);
+        if (topicIds.length > 0) {
+          selectedQuestions = await this.questionModel.find({
+            topicId: { $in: topicIds },
+            isActive: true
+          }).limit(config.questionsCount).exec();
+          console.log(`📝 [FALLBACK] Found ${selectedQuestions.length} questions across all topics in subject`);
+        }
+      }
+
+      console.log(`🎯 [FINAL] Total questions selected: ${selectedQuestions.length}`);
+
+      if (selectedQuestions.length === 0) {
+        console.error('❌ [ERROR] No questions available for the specified criteria (including fallback)');
+        console.log('🔍 [DEBUG] Search criteria used:');
+        console.log('   - Topic ID:', config.topicId);
+        console.log('   - Subject ID:', config.subjectId);
+        console.log('   - Questions requested:', config.questionsCount);
+
+        // Let's check what questions exist in the database
+        const totalQuestions = await this.questionModel.countDocuments({ isActive: true });
+        console.log(`📊 [DEBUG] Total active questions in database: ${totalQuestions}`);
+
+        const questionsForTopic = await this.questionModel.countDocuments({
+          topicId: new Types.ObjectId(config.topicId),
+          isActive: true
+        });
+        console.log(`📊 [DEBUG] Active questions for topic ${config.topicId}: ${questionsForTopic}`);
+
+        if (config.subjectId) {
+          const questionsForSubject = await this.questionModel.countDocuments({
+            subjectId: new Types.ObjectId(config.subjectId),
+            isActive: true
+          });
+          console.log(`📊 [DEBUG] Active questions for subject ${config.subjectId}: ${questionsForSubject}`);
+        }
+
+        throw new BadRequestException('No questions available for the specified criteria (including fallback)');
+      }
+
+      // Step 6: Before creating, check for existing quiz for same user/topic/session signature
+      // We key on sessionId (deterministic hash) to prevent duplicates for same parameters
+      const existingQuiz = await this.quizModel.findOne({ sessionId }).exec();
+      if (existingQuiz) {
+        console.log('♻️ [QUIZ] Returning existing quiz for sessionId:', sessionId)
+        return {
+          quiz: existingQuiz,
+          questions: selectedQuestions,
+          metadata: {
+            userLevel: 0,
+            difficultyDistribution: {} as Record<DifficultyLevel, number>,
+            focusAreas: [],
+            sessionId,
+            isRepeatedSession: true
+          }
+        }
+      }
+
+      // Step 7: Create the quiz
+      console.log('🏗️ [QUIZ] Creating personalized quiz');
       const quiz = await this.createPersonalizedQuiz(config, selectedQuestions, sessionId);
-      
+      console.log('✅ [QUIZ] Quiz created successfully:', quiz ? 'Yes' : 'No');
+
       // Step 7: Cache the result
+      console.log('💾 [CACHE] Caching quiz result');
       this.quizCache.set(sessionId, {
         quiz,
         questions: selectedQuestions,
         timestamp: Date.now()
       });
-      
+
+      console.log('🎉 [SUCCESS] Personalized quiz generation completed');
       return {
         quiz,
         questions: selectedQuestions,
@@ -302,16 +449,17 @@ export class QuizzesService {
   /**
    * Generates deterministic session ID ensuring same quiz for same parameters
    */
-  private generateDeterministicSessionId(config: PersonalizedQuizConfig): string {
+  private generateDeterministicSessionId(config: PersonalizedQuizConfig, difficultyKey?: string): string {
     const normalizedConfig = {
       userId: config.userId,
       topicId: config.topicId,
       subjectId: config.subjectId,
       questionsCount: config.questionsCount,
       sessionType: config.sessionType,
-      timeLimit: Math.round((config.timeLimit || 30) / 5) * 5
+      timeLimit: Math.round((config.timeLimit || 30) / 5) * 5,
+      difficultyKey: difficultyKey || 'default'
     };
-    
+
     const configString = JSON.stringify(normalizedConfig, Object.keys(normalizedConfig).sort());
     return crypto.createHash('sha256').update(configString).digest('hex').substring(0, 16);
   }
@@ -319,7 +467,7 @@ export class QuizzesService {
   /**
    * Comprehensive user performance analysis
    */
-  private async analyzeUserPerformance(userId: string, topicId: string): Promise<UserAnalysis> {
+  async analyzeUserPerformance(userId: string, topicId: string): Promise<UserAnalysis> {
     try {
       const [topicPerformance, recentAttempts, user] = await Promise.all([
         this.performanceModel.findOne({ userId, topicId }).exec(),
@@ -335,6 +483,14 @@ export class QuizzesService {
       const consistencyScore = this.calculateConsistency(recentAttempts);
       const weaknessAnalysis = await this.analyzeUserWeaknesses(userId, topicId);
 
+      // Add recommended difficulty based on performance (using backend enum values)
+      let recommendedDifficulty: 'beginner' | 'intermediate' | 'advanced' = 'intermediate';
+      if (masteryScore < 40 || consistencyScore < 0.5) {
+        recommendedDifficulty = 'beginner';
+      } else if (masteryScore > 80 && consistencyScore > 0.8) {
+        recommendedDifficulty = 'advanced';
+      }
+
       return {
         currentLevel,
         masteryScore,
@@ -345,7 +501,8 @@ export class QuizzesService {
         totalAttempts: topicPerformance?.totalAttempts || 0,
         lastAttemptDate: topicPerformance?.lastQuizAttempted || new Date(0),
         averageTimePerQuestion: this.calculateAverageTimePerQuestion(recentAttempts),
-        streakCount: this.calculateStreakCount(recentAttempts)
+        streakCount: this.calculateStreakCount(recentAttempts),
+        recommendedDifficulty
       };
     } catch (error) {
       console.error('Error analyzing user performance:', error);
@@ -360,7 +517,8 @@ export class QuizzesService {
         totalAttempts: 0,
         lastAttemptDate: new Date(0),
         averageTimePerQuestion: 60,
-        streakCount: 0
+        streakCount: 0,
+        recommendedDifficulty: 'intermediate'
       };
     }
   }
@@ -553,36 +711,108 @@ export class QuizzesService {
    */
   private async selectQuestionsWithStrategy(
     strategy: QuestionSelectionStrategy,
-    sessionId: string
+    sessionId: string,
+    sessionType?: string,
+    subjectId?: string
   ): Promise<Question[]> {
+    console.log('🎲 [STRATEGY] Starting question selection with strategy');
+    console.log('🔑 [STRATEGY] Session ID:', sessionId);
+    console.log('📊 [STRATEGY] Difficulty distribution:', strategy.difficultyDistribution);
+
     const seed = this.generateSeedFromSessionId(sessionId);
     const rng = this.createSeededRNG(seed);
-    
     const selectedQuestions: Question[] = [];
-    
+
     // Get recent question IDs to avoid
-    const recentQuestionIds = strategy.avoidRecentQuestions 
-      ? await this.getRecentQuestionIds(strategy.userId, strategy.topicId, 20)
-      : [];
+    let recentQuestionIds: string[] = [];
+    // For onboarding/assessment, do NOT avoid recent questions (new users have no history)
+    if (sessionType !== 'assessment') {
+      recentQuestionIds = strategy.avoidRecentQuestions
+        ? await this.getRecentQuestionIds(strategy.userId, strategy.topicId, 20)
+        : [];
+    }
+    console.log(`🚫 [STRATEGY] Avoiding ${recentQuestionIds.length} recent questions`);
 
     // Select questions for each difficulty level
     for (const [difficulty, count] of Object.entries(strategy.difficultyDistribution)) {
       if (count > 0) {
+        console.log(`🔍 [STRATEGY] Looking for ${count} questions of difficulty: ${difficulty}`);
         const questions = await this.getQuestionsForDifficulty(
           strategy.topicId,
           difficulty as DifficultyLevel,
           count * 3, // Get more than needed for selection
           recentQuestionIds
         );
-        
+        console.log(`📝 [STRATEGY] Topic ${strategy.topicId}, Difficulty ${difficulty}: Found ${questions.length} questions (excluding recent: ${recentQuestionIds.length})`);
         if (questions.length > 0) {
           const selected = this.selectQuestionsWithSeededRandom(questions, count, rng);
+          console.log(`✅ [STRATEGY] Selected ${selected.length} questions for difficulty ${difficulty}`);
           selectedQuestions.push(...selected);
+        } else {
+          console.warn(`⚠️ [STRATEGY] No questions found for difficulty ${difficulty}`);
         }
       }
     }
 
-    return this.shuffleWithSeed(selectedQuestions, rng);
+    console.log(`📊 [STRATEGY] Total questions selected so far: ${selectedQuestions.length}`);
+
+    // If not enough questions, fill with any active questions for topic
+    const totalNeeded = Object.values(strategy.difficultyDistribution).reduce((a, b) => a + b, 0);
+    console.log(`🎯 [FALLBACK] Total questions needed: ${totalNeeded}, Currently have: ${selectedQuestions.length}`);
+
+    if (selectedQuestions.length < totalNeeded) {
+      const needed = totalNeeded - selectedQuestions.length;
+      console.log(`🔄 [FALLBACK] Need ${needed} more questions, searching for any active questions for topic...`);
+
+      const fallbackQuestions = await this.questionModel.find({
+        topicId: new Types.ObjectId(strategy.topicId),
+        isActive: true
+      }).limit(needed).exec();
+
+      console.log(`📝 [FALLBACK] Found ${fallbackQuestions.length} fallback questions for topic`);
+      console.log(`🔍 [FALLBACK] Fallback questions details:`, fallbackQuestions.map(q => ({
+        id: q._id,
+        difficulty: q.questionDifficulty,
+        text: q.questionText?.substring(0, 50) + '...'
+      })));
+
+      selectedQuestions.push(...fallbackQuestions);
+      console.log(`📊 [FALLBACK] Total questions after topic fallback: ${selectedQuestions.length}`);
+    }
+
+    // If still not enough, fill with any active questions for subject
+    if (selectedQuestions.length < totalNeeded && subjectId) {
+      const needed = totalNeeded - selectedQuestions.length;
+      console.log(`🔄 [SUBJECT-FALLBACK] Still need ${needed} more questions, searching across entire subject...`);
+
+      const topics = await this.topicModel.find({ subjectId: new Types.ObjectId(subjectId) }).select('_id').exec();
+      const topicIds = topics.map(t => t._id);
+      console.log(`📚 [SUBJECT-FALLBACK] Found ${topics.length} topics in subject ${subjectId}`);
+
+      if (topicIds.length > 0) {
+        const subjectFallbackQuestions = await this.questionModel.find({
+          topicId: { $in: topicIds },
+          isActive: true
+        }).limit(needed).exec();
+
+        console.log(`📝 [SUBJECT-FALLBACK] Found ${subjectFallbackQuestions.length} questions across subject`);
+        selectedQuestions.push(...subjectFallbackQuestions);
+        console.log(`📊 [SUBJECT-FALLBACK] Total questions after subject fallback: ${selectedQuestions.length}`);
+      }
+    }
+
+    // Final result
+    console.log(`🎯 [FINAL-SELECTION] Final question count: ${selectedQuestions.length}`);
+    console.log(`📋 [FINAL-SELECTION] Final questions summary:`, selectedQuestions.map(q => ({
+      id: q._id,
+      difficulty: q.questionDifficulty,
+      text: q.questionText?.substring(0, 30) + '...'
+    })));
+
+    // Shuffle and return
+    const shuffledQuestions = this.shuffleWithSeed(selectedQuestions, rng);
+    console.log(`🔀 [SHUFFLE] Questions shuffled, returning ${shuffledQuestions.length} questions`);
+    return shuffledQuestions;
   }
 
   /**
@@ -611,7 +841,6 @@ export class QuizzesService {
       return [];
     }
   }
-
   /**
    * Get questions for specific difficulty
    */
@@ -621,6 +850,12 @@ export class QuizzesService {
     limit: number,
     excludeIds: string[]
   ): Promise<Question[]> {
+    console.log(`🔍 [DIFFICULTY] Searching for questions:`);
+    console.log(`   - Topic ID: ${topicId}`);
+    console.log(`   - Difficulty: ${difficulty}`);
+    console.log(`   - Limit: ${limit}`);
+    console.log(`   - Excluding: ${excludeIds.length} questions`);
+
     try {
       const filter: any = {
         topicId: new Types.ObjectId(topicId),
@@ -631,13 +866,95 @@ export class QuizzesService {
         filter._id = { $nin: excludeIds.map(id => new Types.ObjectId(id)) };
       }
 
-      return await this.questionModel
+      console.log(`🔎 [DIFFICULTY] MongoDB filter:`, JSON.stringify(filter, null, 2));
+
+      const questions = await this.questionModel
         .find(filter)
         .limit(limit)
         .exec();
+
+      console.log(`📝 [DIFFICULTY] Found ${questions.length} questions for difficulty ${difficulty}`);
+
+      // Let's also check what questions exist without the difficulty filter
+      const allQuestionsForTopic = await this.questionModel.countDocuments({
+        topicId: new Types.ObjectId(topicId)
+      });
+      console.log(`📊 [DIFFICULTY] Total questions for topic ${topicId}: ${allQuestionsForTopic}`);
+
+      // Let's see what difficulty values actually exist in the database
+      const existingQuestions = await this.questionModel.find({
+        topicId: new Types.ObjectId(topicId)
+      }).select('questionDifficulty questionText').limit(5).exec();
+
+      console.log(`🔍 [DIFFICULTY] Sample questions in database:`, existingQuestions.map(q => ({
+        difficulty: q.questionDifficulty,
+        text: q.questionText?.substring(0, 50) + '...'
+      })));
+
+      return questions;
     } catch (error) {
-      console.error('Error getting questions for difficulty:', error);
+      console.error('❌ [DIFFICULTY] Error getting questions for difficulty:', error);
       return [];
+    }
+  }
+
+  /**
+   * Get questions by subject and difficulty for quiz generation
+   */
+  async getQuestionsBySubjectAndDifficulty(
+    subjectId: string,
+    difficulty: string,
+    questionCount: number,
+    topics?: string[]
+  ): Promise<Question[]> {
+    if (!Types.ObjectId.isValid(subjectId)) {
+      throw new BadRequestException('Invalid subject ID format');
+    }
+
+    try {
+      // Convert frontend difficulty to backend difficulty
+      const backendDifficulty = difficulty.toUpperCase() as DifficultyLevel;
+      
+      // Step 1: Find topics that belong to the subject
+      let topicFilter: any = { subjectId: new Types.ObjectId(subjectId) };
+      
+      // If specific topics are requested, filter by them
+      if (topics && topics.length > 0) {
+        const validTopicIds = topics.filter(id => Types.ObjectId.isValid(id));
+        if (validTopicIds.length > 0) {
+          topicFilter._id = { $in: validTopicIds.map(id => new Types.ObjectId(id)) };
+        }
+      }
+
+      const topicsInSubject = await this.topicModel
+        .find(topicFilter)
+        .select('_id')
+        .exec();
+
+      if (topicsInSubject.length === 0) {
+        console.log(`No topics found for subject ${subjectId}`);
+        return [];
+      }
+
+      const topicIds = topicsInSubject.map(topic => topic._id);
+
+      // Step 2: Find questions from these topics with the specified difficulty
+      const questions = await this.questionModel
+        .find({
+          topicId: { $in: topicIds },
+          questionDifficulty: backendDifficulty,
+          isActive: true
+        })
+        .limit(questionCount * 2) // Get more than needed for randomization
+        .exec();
+
+      // Step 3: Randomly select the requested number of questions
+      const shuffledQuestions = questions.sort(() => Math.random() - 0.5);
+      return shuffledQuestions.slice(0, questionCount);
+
+    } catch (error) {
+      console.error('Error getting questions by subject and difficulty:', error);
+      throw new BadRequestException(`Failed to get questions: ${error.message}`);
     }
   }
 
@@ -696,14 +1013,26 @@ export class QuizzesService {
     sessionId: string
   ): Promise<Quiz | null> {
     try {
+      // Dedupe questions
+      const uniqueQuestions = Array.from(new Set(questions.map(q => q._id.toString())))
+        .map(id => questions.find(q => q._id.toString() === id)!)
+
       const createQuizDto: CreateQuizDto = {
         topicId: config.topicId,
-        questionIds: questions.map(q => q._id.toString()),
-        quizDifficulty: this.calculateOverallDifficulty(questions),
+        questionIds: uniqueQuestions.map(q => q._id.toString()),
+        quizDifficulty: this.calculateOverallDifficulty(uniqueQuestions),
         quizType: this.mapSessionTypeToQuizType(config.sessionType),
         title: `Personalized ${config.sessionType} - ${sessionId.substring(0, 8)}`,
         description: `AI-generated personalized quiz based on your performance`,
-        timeLimit: config.timeLimit || 30
+        timeLimit: config.timeLimit || 30,
+        sessionId,
+        isPersonalized: true,
+        personalizationMetadata: {
+          userId: config.userId,
+          generatedAt: new Date(),
+          difficultyDistribution: {},
+          focusAreas: []
+        }
       };
 
       return await this.create(createQuizDto);
@@ -745,6 +1074,109 @@ export class QuizzesService {
       case 'assessment': return QuizType.ASSESSMENT;
       case 'adaptive': return QuizType.CHALLENGE;
       default: return QuizType.PRACTICE;
+    }
+  }
+
+  /**
+   * Count total questions available for a topic
+   */
+  async countQuestionsForTopic(topicId: string): Promise<number> {
+    try {
+      return await this.questionModel.countDocuments({
+        topicId: new Types.ObjectId(topicId),
+        isActive: true
+      });
+    } catch (error) {
+      console.error('Error counting questions for topic:', error);
+      return 0;
+    }
+  }
+
+  /**
+   * Get topics that have questions available for practice
+   */
+  async getTopicsWithQuestions(subjectId: string): Promise<any[]> {
+    try {
+      // Get all topics for the subject
+      const topics = await this.topicModel.find({
+        subjectId: new Types.ObjectId(subjectId)
+      }).exec();
+
+      // Check which topics have questions
+      const topicsWithQuestions: any[] = [];
+      for (const topic of topics) {
+        const questionCount = await this.questionModel.countDocuments({
+          topicId: topic._id,
+          isActive: true
+        });
+
+        if (questionCount > 0) {
+          topicsWithQuestions.push({
+            id: topic._id.toString(),
+            name: topic.topicName,
+            description: topic.topicDescription,
+            questionCount,
+            difficulty: (topic as any).difficulty || 'Medium'
+          });
+        }
+      }
+
+      return topicsWithQuestions;
+    } catch (error) {
+      console.error('Error getting topics with questions:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Find existing quiz for topic and difficulty
+   */
+  async findTopicQuiz(topicId: string, subjectId: string, difficulty: string): Promise<any> {
+    try {
+      return await this.quizModel.findOne({
+        topicId: new Types.ObjectId(topicId),
+        subjectId: new Types.ObjectId(subjectId),
+        quizDifficulty: difficulty,
+        isActive: true
+      }).exec();
+    } catch (error) {
+      console.error('Error finding topic quiz:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Save generated quiz to database
+   */
+  async saveGeneratedQuiz(quizData: {
+    title: string;
+    topicId: string;
+    subjectId: string;
+    difficulty: string;
+    questions: any[];
+    timeLimit: number;
+    xpReward: number;
+    createdBy: string;
+  }): Promise<any> {
+    try {
+      const quiz = new this.quizModel({
+        title: quizData.title,
+        topicId: new Types.ObjectId(quizData.topicId),
+        subjectId: new Types.ObjectId(quizData.subjectId),
+        quizDifficulty: quizData.difficulty,
+        questions: quizData.questions,
+        timeLimit: quizData.timeLimit,
+        xpReward: quizData.xpReward,
+        createdBy: new Types.ObjectId(quizData.createdBy),
+        isActive: true,
+        createdAt: new Date(),
+        updatedAt: new Date()
+      });
+
+      return await quiz.save();
+    } catch (error) {
+      console.error('Error saving generated quiz:', error);
+      throw error;
     }
   }
 }

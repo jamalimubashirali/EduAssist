@@ -59,4 +59,23 @@ export class PerformanceController {
   async getUserAnalytics(@Param('userId') userId: string) {
     return this.performanceService.getUserTopicPerformances(userId);
   }
+
+  // Gamification analytics endpoints
+  @Get('user/:userId/gamification-stats')
+  @HttpCode(HttpStatus.OK)
+  async getUserGamificationStats(@Param('userId') userId: string) {
+    return this.performanceService.getUserGamificationStats(userId);
+  }
+
+  @Get('user/:userId/subject-mastery')
+  @HttpCode(HttpStatus.OK)
+  async getSubjectMastery(@Param('userId') userId: string) {
+    return this.performanceService.getSubjectMastery(userId);
+  }
+
+  @Get('user/:userId/learning-trends')
+  @HttpCode(HttpStatus.OK)
+  async getLearningTrends(@Param('userId') userId: string) {
+    return this.performanceService.getLearningTrends(userId);
+  }
 }

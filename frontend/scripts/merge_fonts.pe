@@ -1,0 +1,17 @@
+# FontForge script to merge Baloo2-Bold and Fredoka-Regular into GameFont
+# This creates a custom font combining the best of both fonts
+
+# Open the base font (Baloo2-Bold)
+Open("Baloo2-Bold.ttf")
+
+# Set font properties
+SetFontNames("GameFont", "GameFont", "GameFont Regular", "Regular", "Copyright EduAssist Custom Font")
+
+# Merge with Fredoka for additional character coverage
+MergeFonts("Fredoka-Regular.ttf")
+
+# Generate the final font
+Generate("GameFont.ttf")
+
+# Print completion message
+Print("GameFont.ttf generated successfully!")

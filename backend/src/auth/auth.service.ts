@@ -8,7 +8,7 @@ import {
 import { UsersService } from 'src/users/users.service';
 import { JwtService } from '@nestjs/jwt';
 import { CreateUserDto } from 'src/users/dto/create.user.dto';
-import { User } from 'src/users/schema/user.schema';
+import { User, OnboardingStatus } from 'src/users/schema/user.schema';
 import { TokenData, Tokens } from '../../common/types';
 import { LoginDto } from './dto/LoginDto';
 import * as bcrypt from 'bcrypt';
@@ -19,8 +19,7 @@ export class AuthService {
     private usersService: UsersService,
     private jwtService: JwtService,
   ) {}
-
-  async register(createUserDto: CreateUserDto): Promise<{ message: string }> {
+  async register(createUserDto: CreateUserDto): Promise<{ message: string; user: any , tokens : Tokens }> {
     const presentUser: User | null = await this.usersService.findByEmail(
       createUserDto?.email,
     );
@@ -31,8 +30,30 @@ export class AuthService {
     if (!newUser) {
       throw new InternalServerErrorException('Error Creating New User');
     }
+    const newTokens: Tokens = await this.generateNewTokens({
+      userId: newUser._id.toString(),
+      email: newUser.email
+    });
+    
+    await this.usersService.updateRefreshToken(newUser._id.toString(), newTokens.refresh_token);
     return {
       message: 'User Created Successfully',
+      tokens : newTokens,
+      user: {
+        id: newUser._id.toString(),
+        email: newUser.email,
+        name: newUser.name,
+        preferences: newUser.preferences || [],
+        totalQuizzesAttempted: newUser.totalQuizzesAttempted || 0,
+        averageScore: newUser.averageScore || 0,
+        streakCount: newUser.streakCount || 0,
+        level: newUser.level || 1,
+        xp_points: newUser.xp_points || 0,
+        leaderboardScore: newUser.leaderboardScore || 0,
+        isActive: true,
+        createdAt: new Date().toISOString(),
+        lastLoginAt: new Date().toISOString()
+      }
     };
   }
 
@@ -43,12 +64,29 @@ export class AuthService {
     if (!isMatch) throw new UnauthorizedException('Invalid Password');
     return user;
   }
-
   async login(loginDto: LoginDto): Promise<{
     tokens: Tokens;
     message: string;
+    user: any;
   }> {
     const user = await this.validateUser(loginDto.email, loginDto.password);
+
+    if (user.onboarding && user.onboarding.status === OnboardingStatus.IN_PROGRESS) {
+      const payload = {
+        sub: user._id.toString(),
+        username: user.name,
+        onboardingStep: user.onboarding.step,
+      };
+      const tokens = await this.generateNewTokens({ userId: user._id.toString(), email: user.email });
+      await this.usersService.updateRefreshToken(user._id.toString(), tokens.refresh_token);
+      
+      return {
+        tokens,
+        message: 'Onboarding in progress. Please resume.',
+        user: this.getOnboardingDataForStep(user, user.onboarding.step),
+      };
+    }
+
     const newTokens: Tokens = await this.generateNewTokens({
       userId: user._id.toString(),
       email: user.email
@@ -58,8 +96,30 @@ export class AuthService {
     
     return {
       tokens: newTokens,
-      message: "Login Successful"
+      message: "Login Successful",
+      user: {
+        id: user._id.toString(),
+        email: user.email,
+        name: user.name,
+        onboarding: user.onboarding,
+        preferences: user.preferences || [],
+        totalQuizzesAttempted: user.totalQuizzesAttempted || 0,
+        averageScore: user.averageScore || 0,
+        streakCount: user.streakCount || 0,
+        level: user.level || 1,
+        xp_points: user.xp_points || 0,
+        leaderboardScore: user.leaderboardScore || 0,
+        isActive: true,
+        createdAt: user.createdAt ? user.createdAt.toISOString() : new Date().toISOString(),
+        lastLoginAt: new Date().toISOString()
+      }
     }
+  }
+
+  async logout(userId: string): Promise<{ message: string }> {
+    // To "logout", we clear the stored refresh token.
+    await this.usersService.updateRefreshToken(userId, "");
+    return { message: 'Logged out successfully' };
   }
 
   private async generateNewTokens(tokenData : TokenData) : Promise<Tokens> {
@@ -91,15 +151,26 @@ export class AuthService {
     } 
   }
 
-  async logout(_id: string): Promise<Boolean> {
-    const user = await this.usersService.findById(_id);
-    if (!user) {
-      throw new NotFoundException("User Not Found");
+  private getOnboardingDataForStep(user: User, step: string) {
+    const essentialData: any = {
+      id: user._id.toString(),
+      name: user.name,
+      email: user.email,
+      onboarding: {
+        status: user.onboarding.status,
+        step: user.onboarding.step,
+      },
+    };
+
+    if (step === 'subjects') {
+      essentialData.onboarding.profile = user.onboarding.profile;
+    } else if (step === 'goals') {
+      essentialData.onboarding.profile = user.onboarding.profile;
+      essentialData.onboarding.subjects = user.onboarding.subjects;
     }
-    
-    // Use the new method for clearing token
-    await this.usersService.clearRefreshToken(user._id.toString());
-    return true;
+    // Add more steps as needed
+
+    return essentialData;
   }
 
   async refreshTokens(refreshToken: string): Promise<Tokens> {
@@ -109,16 +180,30 @@ export class AuthService {
       throw new UnauthorizedException('Invalid Refresh Token');
     }
 
-    // Generate new tokens
     const tokens = await this.generateNewTokens({
       userId: user!._id.toString(),
       email: user!.email,
     });
 
-    // Update refresh token in database using the new method
     await this.usersService.updateRefreshToken(user!._id.toString(), tokens.refresh_token);
 
     return tokens;
+  }
+
+  verifyToken(token: string, type: 'access' | 'refresh'): any {
+    const secret = type === 'access' 
+      ? process.env.JWT_ACCESS_TOKEN_SECRET 
+      : process.env.JWT_REFRESH_TOKEN_SECRET;
+    
+    return this.jwtService.verify(token, { secret });
+  }
+
+  async getUserById(userId: string): Promise<any> {
+    return await this.usersService.findById(userId);
+  }
+
+  async getUserByRefreshToken(refreshToken: string): Promise<any> {
+    return await this.usersService.findByRefreshToken(refreshToken);
   }
 }
 

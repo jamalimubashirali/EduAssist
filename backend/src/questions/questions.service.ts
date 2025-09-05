@@ -5,6 +5,7 @@ import { Question } from './schema/questions.schema';
 import { CreateQuestionDto } from './dto/create-question.dto';
 import { UpdateQuestionDto } from './dto/update-question.dto';
 import { DifficultyLevel } from 'common/enums';
+import { GenerateAssessmentDto } from './dto/generate-assessment.dto';
 
 @Injectable()
 export class QuestionsService {
@@ -132,6 +133,52 @@ export class QuestionsService {
       .populate('subjectId', 'subjectName')
       .sort({ createdAt: -1 })
       .exec();
+  }
+
+  async generateAssessment(generateAssessmentDto: GenerateAssessmentDto): Promise<Question[]> {
+    const { subjectIds, count = 10 } = generateAssessmentDto;
+
+    if (!subjectIds || subjectIds.length === 0) {
+      throw new BadRequestException('At least one subject ID must be provided.');
+    }
+
+    const validSubjectIds = subjectIds
+      .filter(id => Types.ObjectId.isValid(id))
+      .map(id => new Types.ObjectId(id));
+
+    if (validSubjectIds.length === 0) {
+        throw new BadRequestException('No valid subject IDs provided.');
+    }
+
+    const questionIds = await this.questionModel.aggregate([
+        { $match: { subjectId: { $in: validSubjectIds }, isActive: true } },
+        { $sample: { size: count } },
+        { $project: { _id: 1 } }
+    ]);
+
+    if (questionIds.length === 0) {
+        // Handle case where no questions are found for the given subjects
+        // Look for any questions as a fallback
+        const fallbackQuestionIds = await this.questionModel.aggregate([
+            { $match: { isActive: true } },
+            { $sample: { size: count } },
+            { $project: { _id: 1 } }
+        ]);
+        const fallbackIds = fallbackQuestionIds.map(q => q._id);
+        return this.questionModel
+            .find({ _id: { $in: fallbackIds } })
+            .populate('topicId', 'topicName')
+            .populate('subjectId', 'subjectName')
+            .exec();
+    }
+
+    const ids = questionIds.map(q => q._id);
+
+    return this.questionModel
+        .find({ _id: { $in: ids } })
+        .populate('topicId', 'topicName')
+        .populate('subjectId', 'subjectName')
+        .exec();
   }
 
   async update(id: string, updateQuestionDto: UpdateQuestionDto): Promise<Question> {

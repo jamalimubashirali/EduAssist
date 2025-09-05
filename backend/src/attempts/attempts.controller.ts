@@ -67,7 +67,17 @@ export class AttemptsController {
     return this.attemptsService.findByUser(userId);
   }
 
-  @Get('analytics/:topicId?')
+  @Get('analytics')
+  @HttpCode(HttpStatus.OK)
+  async getUserAnalyticsAll(@Req() req: Request) {
+    const userId = req.user?.['sub'];
+    if (!userId) {
+      throw new Error('User authentication required');
+    }
+    return this.attemptsService.getUserAttemptAnalytics(userId);
+  }
+
+  @Get('analytics/:topicId')
   @HttpCode(HttpStatus.OK)
   async getUserAnalytics(
     @Param('topicId') topicId: string,
@@ -111,5 +121,22 @@ export class AttemptsController {
   @HttpCode(HttpStatus.NO_CONTENT)
   async remove(@Param('id') id: string) {
     await this.attemptsService.remove(id);
+  }
+
+  // Gamification endpoints
+  @Get('leaderboard/:limit')
+  @HttpCode(HttpStatus.OK)
+  async getLeaderboard(@Param('limit') limit: string = '10') {
+    return this.attemptsService.getLeaderboard(parseInt(limit));
+  }
+
+  @Get('my-leaderboard-position')
+  @HttpCode(HttpStatus.OK)
+  async getMyLeaderboardPosition(@Req() req: Request) {
+    const userId = req.user?.['sub'];
+    if (!userId) {
+      throw new Error('User authentication required');
+    }
+    return this.attemptsService.getUserLeaderboardPosition(userId);
   }
 }

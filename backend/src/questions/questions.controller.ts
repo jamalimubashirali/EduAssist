@@ -4,6 +4,7 @@ import { CreateQuestionDto } from './dto/create-question.dto';
 import { Question } from './schema/questions.schema';
 import { UpdateQuestionDto } from './dto/update-question.dto';
 import { DifficultyLevel } from 'common/enums';
+import { GenerateAssessmentDto } from './dto/generate-assessment.dto';
 
 @Controller('questions')
 export class QuestionsController {
@@ -13,6 +14,12 @@ export class QuestionsController {
     @HttpCode(HttpStatus.CREATED)
     async createQuestion(@Body() createQuestionDto: CreateQuestionDto): Promise<Question | null> {
         return this.questionsService.create(createQuestionDto);
+    }
+
+    @Post('generate-assessment')
+    @HttpCode(HttpStatus.OK)
+    async generateAssessment(@Body() generateAssessmentDto: GenerateAssessmentDto): Promise<Question[]> {
+        return this.questionsService.generateAssessment(generateAssessmentDto);
     }
 
     @Get('all')

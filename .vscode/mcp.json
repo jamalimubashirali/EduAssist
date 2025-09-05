@@ -1,0 +1,15 @@
+{
+  "mcpServers": {
+    "eduassist-mongodb": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-mongodb"
+      ],
+      "env": {
+        "MONGODB_URI": "mongodb+srv://jamalimubashirali:EduAssist_7126112@maincluster.fdjbznv.mongodb.net/edu_assist?retryWrites=true&w=majority&appName=MainCluster",
+        "MONGODB_DB": "edu_assist"
+      }
+    }
+  }
+}

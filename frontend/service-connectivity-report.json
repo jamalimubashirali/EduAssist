@@ -1,0 +1,112 @@
+{
+  "timestamp": "2025-08-26T13:02:58.762Z",
+  "apiConfiguration": {
+    "baseUrl": "http://localhost:5000/api/v1",
+    "timeout": 30000,
+    "withCredentials": true,
+    "contentType": "application/json"
+  },
+  "validation": {
+    "correctPort": true,
+    "correctPath": true
+  },
+  "summary": {
+    "totalTests": 10,
+    "successfulTests": 4,
+    "failedTests": 6,
+    "authRequiredFailed": 2,
+    "publicEndpointsFailed": 4
+  },
+  "endpoints": [
+    {
+      "name": "Auth Status",
+      "url": "/auth/status",
+      "method": "GET",
+      "requiresAuth": false,
+      "success": true,
+      "responseTime": 89,
+      "statusCode": 200
+    },
+    {
+      "name": "Get All Subjects",
+      "url": "/subjects/get-subjects",
+      "method": "GET",
+      "requiresAuth": false,
+      "success": false,
+      "responseTime": 158,
+      "error": "Unauthorized"
+    },
+    {
+      "name": "Get All Topics",
+      "url": "/topics/get-topics",
+      "method": "GET",
+      "requiresAuth": false,
+      "success": false,
+      "responseTime": 94,
+      "error": "Unauthorized"
+    },
+    {
+      "name": "Search Subjects",
+      "url": "/subjects/search",
+      "method": "GET",
+      "requiresAuth": false,
+      "success": false,
+      "responseTime": 71,
+      "error": "Unauthorized"
+    },
+    {
+      "name": "Get All Quizzes",
+      "url": "/quizzes",
+      "method": "GET",
+      "requiresAuth": false,
+      "success": true,
+      "responseTime": 500,
+      "statusCode": 200
+    },
+    {
+      "name": "Get Popular Quizzes",
+      "url": "/quizzes/popular",
+      "method": "GET",
+      "requiresAuth": false,
+      "success": true,
+      "responseTime": 208,
+      "statusCode": 200
+    },
+    {
+      "name": "Search Quizzes",
+      "url": "/quizzes/search",
+      "method": "GET",
+      "requiresAuth": false,
+      "success": true,
+      "responseTime": 427,
+      "statusCode": 200
+    },
+    {
+      "name": "Global Leaderboard",
+      "url": "/attempts/leaderboard",
+      "method": "GET",
+      "requiresAuth": false,
+      "success": false,
+      "responseTime": 36,
+      "error": "Unauthorized"
+    },
+    {
+      "name": "Get All Users",
+      "url": "/users",
+      "method": "GET",
+      "requiresAuth": true,
+      "success": false,
+      "responseTime": 37,
+      "error": "Unauthorized"
+    },
+    {
+      "name": "Get Current User",
+      "url": "/users/me",
+      "method": "GET",
+      "requiresAuth": true,
+      "success": false,
+      "responseTime": 37,
+      "error": "Unauthorized"
+    }
+  ]
+}

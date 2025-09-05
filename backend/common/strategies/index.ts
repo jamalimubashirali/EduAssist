@@ -1,2 +1,2 @@
-export * from './access-token.stratefy';
+export * from './access-token.strategy';
 export * from './refresh-token.strategy';

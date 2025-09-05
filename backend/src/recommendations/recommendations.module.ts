@@ -4,14 +4,14 @@ import { RecommendationsController } from './recommendations.controller';
 import { MongooseModule } from '@nestjs/mongoose';
 import { Recommendation, RecommendationSchema } from './schema/recommendations.schema';
 
+const RecommendationModelModule = MongooseModule.forFeature([
+  { name: Recommendation.name, schema: RecommendationSchema }
+]);
+
 @Module({
-  imports: [
-    MongooseModule.forFeature([
-      { name: Recommendation.name, schema: RecommendationSchema }
-    ])
-  ],
+  imports: [RecommendationModelModule],
   controllers: [RecommendationsController],
   providers: [RecommendationsService],
-  exports: [RecommendationsService]
+  exports: [RecommendationsService, RecommendationModelModule]
 })
 export class RecommendationsModule {}

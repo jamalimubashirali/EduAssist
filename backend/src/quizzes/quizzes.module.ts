@@ -7,6 +7,8 @@ import { Question, QuestionSchema } from '../questions/schema/questions.schema';
 import { UserPerformance, UserPerformanceSchema } from '../performance/schema/performance.schema';
 import { Attempt, AttemptSchema } from '../attempts/schema/attempts.schema';
 import { User, UserSchema } from '../users/schema/user.schema';
+import { Topic, TopicSchema } from '../topics/schema/topics.schema';
+import { TopicsService } from '../topics/topics.service';
 
 @Module({
   imports: [
@@ -15,10 +17,11 @@ import { User, UserSchema } from '../users/schema/user.schema';
       { name: Question.name, schema: QuestionSchema },
       { name: UserPerformance.name, schema: UserPerformanceSchema },
       { name: Attempt.name, schema: AttemptSchema },
-      { name: User.name, schema: UserSchema }
+      { name: User.name, schema: UserSchema },
+      { name: Topic.name, schema: TopicSchema }
     ])
   ],
-  providers: [QuizzesService],
+  providers: [QuizzesService, TopicsService],
   controllers: [QuizzesController],
   exports: [QuizzesService]
 })

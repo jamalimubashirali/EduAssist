@@ -1,38 +1,63 @@
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
-import { ValidationPipe } from '@nestjs/common';
+import { ValidationPipe, Logger } from '@nestjs/common';
 import * as cookieParser from 'cookie-parser';
+import { GlobalExceptionFilter } from '../common/filters/global-exception.filter';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
-
-  // CORS configuration
-  app.enableCors({
-    origin: process.env.FRONTEND_URL || 'http://localhost:3000',
-    credentials: true,
-    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'],
-    allowedHeaders: ['Content-Type', 'Authorization'],
-  });
-
-  app.use(cookieParser());
-  app.setGlobalPrefix('api/v1');
-
-  // Enhanced validation
-  app.useGlobalPipes(
-    new ValidationPipe({
-      whitelist: true,
-      forbidNonWhitelisted: true,
-      transform: true,
-      disableErrorMessages: process.env.NODE_ENV === 'production',
-    })
-  );
-
-  const port = process.env.PORT || 5000;
-  await app.listen(port);
+  const logger = new Logger('Bootstrap');
   
-  console.log(`🚀 EduAssist Backend running on port ${port}`);
-  console.log(`📚 API Documentation: http://localhost:${port}/api/v1`);
-  console.log(`🔒 Environment: ${process.env.NODE_ENV || 'development'}`);
+  try {
+    logger.log('🚀 Starting EduAssist Backend...');
+    
+    const app = await NestFactory.create(AppModule);    // CORS configuration
+    app.enableCors({
+      origin: [
+        process.env.FRONTEND_URL || 'http://localhost:3000',
+        'http://localhost:3001'  // Additional port for Next.js dev server
+      ],
+      credentials: true,
+      methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'],
+      allowedHeaders: ['Content-Type', 'Authorization'],
+    });app.use(cookieParser());
+    app.setGlobalPrefix('api/v1');
+
+    // Global exception filter
+    app.useGlobalFilters(new GlobalExceptionFilter());
+
+    // Enhanced validation
+    app.useGlobalPipes(
+      new ValidationPipe({
+        whitelist: true,
+        forbidNonWhitelisted: true,
+        transform: true,
+        disableErrorMessages: process.env.NODE_ENV === 'production',
+      })
+    );
+
+    const port = process.env.PORT || 5000;
+    await app.listen(port);
+    
+    logger.log(`🚀 EduAssist Backend running on port ${port}`);
+    logger.log(`📚 API Documentation: http://localhost:${port}/api/v1`);
+    logger.log(`🔒 Environment: ${process.env.NODE_ENV || 'development'}`);
+    logger.log(`🌐 CORS enabled for: ${process.env.FRONTEND_URL || 'http://localhost:3000'}`);
+    
+    // Graceful shutdown handlers
+    process.on('SIGTERM', () => {
+      logger.warn('🛑 SIGTERM signal received: closing HTTP server');
+      app.close();
+    });
+
+    process.on('SIGINT', () => {
+      logger.warn('🛑 SIGINT signal received: closing HTTP server');
+      app.close();
+    });
+
+  } catch (error) {
+    logger.error('❌ Failed to start server:', error);
+    process.exit(1);
+  }
 }
 
 bootstrap();

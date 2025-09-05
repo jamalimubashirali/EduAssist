@@ -48,10 +48,22 @@ export class TopicsController {
       message : deleted ? 'Topic deleted successfully' : 'Topic not found'
     }
   }
-
   @Get('search-topic') 
   @HttpCode(HttpStatus.OK)
   async searchTopics(@Query() searchDto: SearchTopicsDto): Promise<Topic[]> {
+  try {
+    if (!searchDto.q || searchDto.q.trim().length === 0) {
+      return [];
+    }
+    return this.topicsService.searchTopics(searchDto.q.trim());
+  } catch (error) {
+    throw new BadRequestException('Invalid search query');
+  }
+  }
+
+  @Get('search') 
+  @HttpCode(HttpStatus.OK)
+  async searchTopicsAlternative(@Query() searchDto: SearchTopicsDto): Promise<Topic[]> {
   try {
     if (!searchDto.q || searchDto.q.trim().length === 0) {
       return [];

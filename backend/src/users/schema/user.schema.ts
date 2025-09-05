@@ -3,6 +3,21 @@ import { HydratedDocument, SchemaTypes, Types } from 'mongoose';
 import { UserRole } from 'common/enums';
 import * as bcrypt from 'bcrypt';
 
+export enum OnboardingStatus {
+  NOT_STARTED = 'NOT_STARTED',
+  IN_PROGRESS = 'IN_PROGRESS',
+  COMPLETED = 'COMPLETED',
+}
+
+export enum OnboardingStep {
+  WELCOME = 'WELCOME',
+  PROFILE = 'PROFILE',
+  SUBJECTS = 'SUBJECTS',
+  GOALS = 'GOALS',
+  ASSESSMENT = 'ASSESSMENT',
+  ONBOARDING_ASSESSMENT_RESULTS = 'ONBOARDING-ASSESSMENT-RESULTS',
+  COMPLETION_SUMMARY = 'COMPLETION-SUMMARY',
+}
 
 export type UserSchema = HydratedDocument<User>;
 
@@ -25,7 +40,66 @@ export class User {
 
     @Prop({ type: [SchemaTypes.ObjectId], ref: 'Subject', default: [] })
     preferences: Types.ObjectId[];
-    
+
+    // Onboarding and profile customization
+    @Prop({ type: String, default: null })
+    avatar: string | null;
+
+    @Prop({ type: String, default: null })
+    theme: string | null;
+
+    @Prop({ type: [String], default: [] })
+    goals: string[];
+
+    @Prop({
+      type: {
+        status: { type: String, enum: Object.values(OnboardingStatus), default: OnboardingStatus.NOT_STARTED },
+        step: { type: String, enum: Object.values(OnboardingStep), default: OnboardingStep.WELCOME }, 
+        startedAt: { type: Date, default: null },
+        completedAt: { type: Date, default: null },
+        lastUpdatedAt: { type: Date, default: null },
+        // Enhanced assessment tracking
+        assessmentData: {
+          totalQuestions: { type: Number, default: 0 },
+          correctAnswers: { type: Number, default: 0 },
+          overallScore: { type: Number, default: 0 },
+          proficiencyLevel: { type: String, default: 'BEGINNER' },
+          timeSpent: { type: Number, default: 0 },
+          subjectBreakdown: { type: Object, default: {} },
+          weakAreas: { type: [String], default: [] },
+          strongAreas: { type: [String], default: [] },
+          learningStyle: { type: String, default: null },
+          recommendedPath: { type: String, default: null },
+          initialDifficulty: { type: String, default: 'MEDIUM' },
+          completedAt: { type: Date, default: null }
+        },
+        // Learning preferences and goals
+        learningPreferences: {
+          studyTimePerDay: { type: Number, default: 30 }, // minutes
+          preferredDifficulty: { type: String, default: 'MEDIUM' },
+          focusAreas: { type: [String], default: [] },
+          targetScore: { type: Number, default: 75 },
+          weeklyGoal: { type: Number, default: 5 } // quizzes per week
+        },
+        // Progress tracking
+        progressMetrics: {
+          questionsAnswered: { type: Number, default: 0 },
+          averageAccuracy: { type: Number, default: 0 },
+          improvementRate: { type: Number, default: 0 },
+          consistencyScore: { type: Number, default: 0 },
+          engagementLevel: { type: String, default: 'LOW' }
+        }
+      },
+      default: { 
+        status: OnboardingStatus.NOT_STARTED, 
+        step: OnboardingStep.WELCOME,
+        assessmentData: {},
+        learningPreferences: {},
+        progressMetrics: {}
+      }
+    })
+    onboarding: any;
+
     @Prop({ type: String, enum: Object.values(UserRole), default: UserRole.STUDENT })
     role: UserRole;
 
@@ -51,7 +125,7 @@ export class User {
     @Prop({ type: String, default: null })
     lastLoginIP: string | null;
 
-    // Learning analytics fields
+    // Enhanced learning analytics fields
     @Prop({ type: Number, default: 0 })
     totalQuizzesAttempted: number;
 
@@ -63,6 +137,62 @@ export class User {
 
     @Prop({ type: Date, default: null })
     lastQuizDate: Date | null;
+
+    // Advanced learning analytics
+    @Prop({ type: Object, default: {} })
+    learningAnalytics: {
+      studyPatterns?: {
+        preferredTimeOfDay?: string;
+        averageSessionLength?: number;
+        studyFrequency?: string;
+        peakPerformanceHours?: string[];
+      };
+      performanceTrends?: {
+        weeklyProgress?: number[];
+        monthlyImprovement?: number;
+        subjectMastery?: Record<string, number>;
+        difficultyProgression?: Record<string, number>;
+      };
+      behaviorMetrics?: {
+        questionSkipRate?: number;
+        averageThinkingTime?: number;
+        helpSeekingFrequency?: number;
+        retryPatterns?: Record<string, number>;
+      };
+      adaptiveLearning?: {
+        currentDifficultyLevel?: string;
+        recommendedNextTopics?: string[];
+        personalizedQuestionTypes?: string[];
+        optimalChallengeLevel?: number;
+      };
+    };
+
+    // Gamification fields
+    @Prop({ type: Number, default: 0 })
+    longestStreak: number;
+
+    @Prop({ type: [String], default: [] })
+    completedQuests: string[];
+
+    @Prop({ type: [String], default: [] })
+    unlockedBadges: string[];
+
+    @Prop({ type: Object, default: {} })
+    questProgress: Record<string, number>;
+
+    @Prop({ type: Number, default: 0 })
+    dailyQuizCount: number;
+
+    @Prop({ type: Number, default: 0 })
+    weeklyQuizCount: number;
+
+    @Prop({ type: Date, default: null })
+    lastResetDate: Date | null;
+
+    // Timestamp fields (automatically added by Mongoose with timestamps: true)
+    createdAt: Date;
+
+    updatedAt: Date;
 
     async comparePassword(candidatePassword: string): Promise<boolean> {
         return bcrypt.compare(candidatePassword, this.password);
