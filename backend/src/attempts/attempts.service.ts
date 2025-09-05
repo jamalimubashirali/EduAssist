@@ -18,7 +18,7 @@ export class AttemptsService {
     @InjectModel(User.name) private userModel: Model<User>,
     @InjectModel(Recommendation.name) private recommendationModel: Model<Recommendation>,
     private readonly recommendationsService: RecommendationsService,
-  ) {}
+  ) { }
 
   async create(createAttemptDto: CreateAttemptDto): Promise<Attempt | null> {
     try {
@@ -136,7 +136,7 @@ export class AttemptsService {
     }
 
     return await this.attemptModel
-      .find({ 
+      .find({
         userId: new Types.ObjectId(userId),
         topicId: new Types.ObjectId(topicId)
       })
@@ -183,7 +183,7 @@ export class AttemptsService {
     // Recalculate stats
     const correctAnswers = attempt.answersRecorded.filter(answer => answer.isCorrect).length;
     const totalQuestions = attempt.answersRecorded.length;
-    
+
     attempt.correctAnswers = correctAnswers;
     attempt.totalQuestions = totalQuestions;
     attempt.percentageScore = totalQuestions > 0 ? Math.round((correctAnswers / totalQuestions) * 100) : 0;
@@ -390,7 +390,7 @@ export class AttemptsService {
 
   private getQuizNextSteps(score: number, proficiency: string): string[] {
     const steps: string[] = [];
-    
+
     if (score < 60) {
       steps.push("Review fundamental concepts before attempting similar quizzes");
       steps.push("Practice with easier questions to build confidence");
@@ -565,11 +565,11 @@ export class AttemptsService {
     const recentScores = scores.slice(0, 5);
     const olderScores = scores.slice(5, 10);
     let improvementTrend = 'Steady';
-    
+
     if (recentScores.length > 0 && olderScores.length > 0) {
       const recentAvg = recentScores.reduce((a, b) => a + b, 0) / recentScores.length;
       const olderAvg = olderScores.reduce((a, b) => a + b, 0) / olderScores.length;
-      
+
       if (recentAvg > olderAvg + 5) improvementTrend = 'Improving';
       else if (recentAvg < olderAvg - 5) improvementTrend = 'Declining';
     }
@@ -628,7 +628,7 @@ export class AttemptsService {
     // Calculate various streak patterns
     const streakCount = this.calculateCorrectStreak(answers);
     const longestStreak = this.calculateLongestStreak(answers);
-    
+
     // Time analysis
     const timings = answers.map(a => a.timeSpent || 0).filter(t => t > 0);
     const fastestQuestion = timings.length > 0 ? Math.min(...timings) : 0;
@@ -637,7 +637,7 @@ export class AttemptsService {
 
     // Response pattern analysis
     const responsePatterns = this.analyzeResponsePatterns(answers);
-    
+
     // Accuracy progression
     const accuracyProgression = this.calculateAccuracyProgression(answers);
 
@@ -651,18 +651,18 @@ export class AttemptsService {
       longestStreak,
       fastestQuestion,
       slowestQuestion,
-      
+
       // Enhanced metrics
       timeVariance: Math.round(timeVariance),
       responsePatterns,
       accuracyProgression,
       confidenceMetrics,
-      
+
       // Performance indicators
       consistencyScore: this.calculateConsistencyScore(answers, timings),
       efficiencyScore: this.calculateEfficiencyScore(answers, timings),
       improvementPotential: this.calculateImprovementPotential(attempt),
-      
+
       // Difficulty breakdown (simulated)
       difficultyBreakdown: this.simulateDifficultyBreakdown(answers)
     };
@@ -685,7 +685,7 @@ export class AttemptsService {
   private calculateLongestStreak(answers: any[]): number {
     let maxStreak = 0;
     let currentStreak = 0;
-    
+
     for (const answer of answers) {
       if (answer.isCorrect) {
         currentStreak++;
@@ -694,14 +694,14 @@ export class AttemptsService {
         currentStreak = 0;
       }
     }
-    
+
     return maxStreak;
   }
 
   // Calculate variance in response times
   private calculateTimeVariance(timings: number[]): number {
     if (timings.length < 2) return 0;
-    
+
     const mean = timings.reduce((sum, time) => sum + time, 0) / timings.length;
     const squaredDifferences = timings.map(time => Math.pow(time - mean, 2));
     return squaredDifferences.reduce((sum, diff) => sum + diff, 0) / timings.length;
@@ -711,36 +711,36 @@ export class AttemptsService {
   private analyzeResponsePatterns(answers: any[]): any {
     const totalAnswers = answers.length;
     const correctAnswers = answers.filter(a => a.isCorrect).length;
-    
+
     // Calculate patterns in first vs second half
     const firstHalf = answers.slice(0, Math.floor(totalAnswers / 2));
     const secondHalf = answers.slice(Math.floor(totalAnswers / 2));
-    
-    const firstHalfAccuracy = firstHalf.length > 0 ? 
+
+    const firstHalfAccuracy = firstHalf.length > 0 ?
       (firstHalf.filter(a => a.isCorrect).length / firstHalf.length) * 100 : 0;
-    const secondHalfAccuracy = secondHalf.length > 0 ? 
+    const secondHalfAccuracy = secondHalf.length > 0 ?
       (secondHalf.filter(a => a.isCorrect).length / secondHalf.length) * 100 : 0;
 
     return {
       overallAccuracy: Math.round((correctAnswers / totalAnswers) * 100),
       firstHalfAccuracy: Math.round(firstHalfAccuracy),
       secondHalfAccuracy: Math.round(secondHalfAccuracy),
-      improvementTrend: secondHalfAccuracy > firstHalfAccuracy ? 'IMPROVING' : 
-                       secondHalfAccuracy < firstHalfAccuracy ? 'DECLINING' : 'STABLE',
+      improvementTrend: secondHalfAccuracy > firstHalfAccuracy ? 'IMPROVING' :
+        secondHalfAccuracy < firstHalfAccuracy ? 'DECLINING' : 'STABLE',
       consistentPerformance: Math.abs(secondHalfAccuracy - firstHalfAccuracy) < 10
     };
   }
 
   // Calculate accuracy progression throughout the attempt
   private calculateAccuracyProgression(answers: any[]): number[] {
-    const progression = [];
+    const progression: number[] = [];
     let correctCount = 0;
-    
+
     for (let i = 0; i < answers.length; i++) {
       if (answers[i].isCorrect) correctCount++;
       progression.push(Math.round((correctCount / (i + 1)) * 100));
     }
-    
+
     return progression;
   }
 
@@ -749,14 +749,14 @@ export class AttemptsService {
     const avgTime = timings.length > 0 ? timings.reduce((sum, t) => sum + t, 0) / timings.length : 0;
     const correctAnswers = answers.filter(a => a.isCorrect);
     const incorrectAnswers = answers.filter(a => !a.isCorrect);
-    
+
     // Quick correct answers suggest confidence
     const quickCorrectAnswers = correctAnswers.filter(a => (a.timeSpent || 0) < avgTime).length;
     const slowIncorrectAnswers = incorrectAnswers.filter(a => (a.timeSpent || 0) > avgTime).length;
-    
+
     return {
-      confidenceIndicator: quickCorrectAnswers > slowIncorrectAnswers ? 'HIGH' : 
-                          quickCorrectAnswers === slowIncorrectAnswers ? 'MEDIUM' : 'LOW',
+      confidenceIndicator: quickCorrectAnswers > slowIncorrectAnswers ? 'HIGH' :
+        quickCorrectAnswers === slowIncorrectAnswers ? 'MEDIUM' : 'LOW',
       quickCorrectCount: quickCorrectAnswers,
       slowIncorrectCount: slowIncorrectAnswers,
       averageResponseTime: Math.round(avgTime)
@@ -767,11 +767,11 @@ export class AttemptsService {
   private calculateConsistencyScore(answers: any[], timings: number[]): number {
     const accuracyProgression = this.calculateAccuracyProgression(answers);
     const timeVariance = this.calculateTimeVariance(timings);
-    
+
     // Lower variance = higher consistency
     const accuracyConsistency = 100 - (this.calculateVariance(accuracyProgression) / 10);
     const timeConsistency = timeVariance < 100 ? 80 : timeVariance < 500 ? 60 : 40;
-    
+
     return Math.round((accuracyConsistency + timeConsistency) / 2);
   }
 
@@ -779,13 +779,13 @@ export class AttemptsService {
   private calculateEfficiencyScore(answers: any[], timings: number[]): number {
     const accuracy = (answers.filter(a => a.isCorrect).length / answers.length) * 100;
     const avgTime = timings.length > 0 ? timings.reduce((sum, t) => sum + t, 0) / timings.length : 60;
-    
+
     // Optimal time range: 15-45 seconds per question
     const timeEfficiency = avgTime < 15 ? 70 : // Too fast, might be guessing
-                          avgTime <= 45 ? 100 : // Optimal range
-                          avgTime <= 90 ? 80 : // Acceptable
-                          60; // Too slow
-    
+      avgTime <= 45 ? 100 : // Optimal range
+        avgTime <= 90 ? 80 : // Acceptable
+          60; // Too slow
+
     return Math.round((accuracy + timeEfficiency) / 2);
   }
 
@@ -794,11 +794,11 @@ export class AttemptsService {
     const score = attempt.score || 0;
     const totalQuestions = attempt.totalQuestions || 0;
     const correctAnswers = attempt.correctAnswers || 0;
-    
+
     // Higher potential for lower scores, adjusted by question count
     const scorePotential = Math.max(0, 100 - score);
     const volumePotential = totalQuestions < 10 ? 20 : totalQuestions < 20 ? 10 : 0;
-    
+
     return Math.min(100, scorePotential + volumePotential);
   }
 
@@ -806,10 +806,10 @@ export class AttemptsService {
   private simulateDifficultyBreakdown(answers: any[]): any {
     const totalAnswers = answers.length;
     const correctAnswers = answers.filter(a => a.isCorrect).length;
-    
+
     // Simulate distribution based on performance
     const accuracy = (correctAnswers / totalAnswers) * 100;
-    
+
     return {
       easy: {
         attempted: Math.floor(totalAnswers * 0.4),
@@ -832,7 +832,7 @@ export class AttemptsService {
   // Helper method to calculate variance for any array of numbers
   private calculateVariance(numbers: number[]): number {
     if (numbers.length < 2) return 0;
-    
+
     const mean = numbers.reduce((sum, num) => sum + num, 0) / numbers.length;
     const squaredDifferences = numbers.map(num => Math.pow(num - mean, 2));
     return squaredDifferences.reduce((sum, diff) => sum + diff, 0) / numbers.length;
@@ -964,7 +964,7 @@ export class AttemptsService {
       ]);
 
       const userIndex = allUsersRanked.findIndex(user => user.userId.toString() === userId);
-      
+
       if (userIndex === -1) {
         throw new NotFoundException('User not found in leaderboard');
       }
@@ -1007,7 +1007,7 @@ export class AttemptsService {
 
       const today = new Date();
       const lastQuizDate = user.lastQuizDate ? new Date(user.lastQuizDate) : null;
-      
+
       let streakCount = user.streakCount || 0;
       let longestStreak = user.longestStreak || 0;
       let dailyQuizCount = user.dailyQuizCount || 0;

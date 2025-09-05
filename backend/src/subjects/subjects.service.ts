@@ -98,6 +98,7 @@ export class SubjectsService {
 
     return true;
   }
+  
   async getSubjectStats(id: string): Promise<{ subjectStats: SubjectStats; message: string }> {
     if (!Types.ObjectId.isValid(id)) {
       throw new NotFoundException('Invalid subject ID format');

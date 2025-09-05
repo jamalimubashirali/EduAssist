@@ -582,7 +582,7 @@ export class RecommendationsService {
     let reason = '';
     let difficulty = DifficultyLevel.MEDIUM;
     let priority = 50;
-    const factors = [];
+    const factors: string[] = [];
 
     // Base recommendation on score
     if (attemptScore < 40) {
@@ -620,7 +620,12 @@ export class RecommendationsService {
       factors.push('intuitive_learner');
     } else if (learningStyle === 'NEEDS_SUPPORT') {
       reason += 'We recommend starting with guided examples and visual learning aids to build confidence. ';
-      difficulty = Math.max(0, difficulty - 1) as DifficultyLevel; // Lower difficulty
+      // Lower difficulty for users needing support
+      if (difficulty === DifficultyLevel.HARD) {
+        difficulty = DifficultyLevel.MEDIUM;
+      } else if (difficulty === DifficultyLevel.MEDIUM) {
+        difficulty = DifficultyLevel.EASY;
+      }
       priority += 20;
       factors.push('needs_support');
     }

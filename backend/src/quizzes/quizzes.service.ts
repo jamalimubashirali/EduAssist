@@ -168,6 +168,7 @@ export class QuizzesService {
       .populate('questionIds', 'questionText questionDifficulty answerOptions correctAnswer')
       .exec();
   }
+
   async getQuizForAttempt(id: string): Promise<Quiz> {
     if (!Types.ObjectId.isValid(id)) {
       throw new NotFoundException('Invalid quiz ID format');

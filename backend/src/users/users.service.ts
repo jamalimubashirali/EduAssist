@@ -9,6 +9,7 @@ import { PerformanceService } from '../performance/performance.service';
 import { RecommendationsService } from '../recommendations/recommendations.service';
 import { Attempt } from '../attempts/schema/attempts.schema';
 import { SubjectsService } from 'src/subjects/subjects.service';
+import { TopicsService } from 'src/topics/topics.service';
 
 @Injectable()
 export class UsersService {
@@ -18,7 +19,8 @@ export class UsersService {
         private readonly questionsService: QuestionsService,
         private readonly performanceService: PerformanceService,
         private readonly recommendationsService: RecommendationsService,
-        private readonly subjectService: SubjectsService
+        private readonly subjectService: SubjectsService,
+        private readonly topicService: TopicsService
     ) { }
 
     async findAll(): Promise<User[]> {
@@ -290,7 +292,7 @@ export class UsersService {
                             // Fetch real topic name
                             let topicName = 'Unknown Topic';
                             try {
-                                const topic = await this.getTopicById(topicId);
+                                const topic = await this.topicService.findById(topicId);
                                 topicName = topic?.topicName || topicName;
                             } catch (err) {
                                 console.error(`Error fetching topic name for topicId ${topicId}:`, err);
@@ -798,19 +800,6 @@ export class UsersService {
         const mean = scores.reduce((sum, score) => sum + score, 0) / scores.length;
         const squaredDifferences = scores.map(score => Math.pow(score - mean, 2));
         return squaredDifferences.reduce((sum, diff) => sum + diff, 0) / scores.length;
-    }
-
-    // Helper method to get topic by ID
-    private async getTopicById(topicId: string): Promise<any> {
-        try {
-            // This would typically use a TopicsService, but since we don't have it injected,
-            // we'll use a direct database query for now
-            const topic = await this.userModel.db.collection('topics').findOne({ _id: new Types.ObjectId(topicId) });
-            return topic;
-        } catch (error) {
-            console.error(`Error fetching topic ${topicId}:`, error);
-            return null;
-        }
     }
 
     // Calculate accuracy trend across questions
