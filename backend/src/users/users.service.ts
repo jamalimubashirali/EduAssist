@@ -181,7 +181,6 @@ export class UsersService {
     }
 
     // Assessment and onboarding methods
-    // ...existing code...
     async submitAssessment(body: {
         user_id: string;
         answers: Array<{

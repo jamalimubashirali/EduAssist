@@ -10,7 +10,7 @@ export class QuizzesController {
   constructor(
     private readonly quizzesService: QuizzesService,
     private readonly topicsService: TopicsService
-  ) {}
+  ) { }
 
   /**
    * Generate personalized quiz using AI algorithm
@@ -45,7 +45,7 @@ export class QuizzesController {
       };
 
       const result = await this.quizzesService.generatePersonalizedQuiz(fullConfig);
-      
+
       return result;
     } catch (error) {
       console.error('Error in generatePersonalizedQuiz:', error);
@@ -81,7 +81,7 @@ export class QuizzesController {
       // This would typically call a separate method in the service
       // For now, we'll return recommended defaults based on user analysis
       const userAnalysis = await this.quizzesService['analyzeUserPerformance'](userId, topicId);
-      
+
       let recommendedQuestionCount = 10;
       let recommendedTimeLimit = 30;
       let recommendedDifficulty = 'Medium';
@@ -215,10 +215,10 @@ export class QuizzesController {
       }
 
       const limitNumber = parseInt(limit, 10) || 10;
-      
+
       // Call service method to get quizzes by subject
       const quizzes = await this.quizzesService.getQuizzesBySubject(subjectId, limitNumber);
-      
+
       return quizzes;
     } catch (error) {
       console.error('Error getting quizzes by subject:', error);
@@ -241,27 +241,27 @@ export class QuizzesController {
     try {
       const limitNumber = parseInt(limit, 10) || 10;
       const offsetNumber = parseInt(offset, 10) || 0;
-      
+
       // Get all quizzes with optional filters
       const quizzes = await this.quizzesService.findAll();
-      
+
       // Apply filters if provided
       let filteredQuizzes = quizzes;
       if (subject) {
         // Filter by subject - this would need to be implemented based on your schema
-        filteredQuizzes = filteredQuizzes.filter(quiz => 
-          quiz.topicId && typeof quiz.topicId === 'object' && 
+        filteredQuizzes = filteredQuizzes.filter(quiz =>
+          quiz.topicId && typeof quiz.topicId === 'object' &&
           'subjectId' in quiz.topicId
         );
       }
       if (difficulty) {
         filteredQuizzes = filteredQuizzes.filter(quiz => quiz.quizDifficulty === difficulty);
       }
-      
+
       // Apply pagination
       const startIndex = offsetNumber;
       const endIndex = startIndex + limitNumber;
-      
+
       return filteredQuizzes.slice(startIndex, endIndex);
     } catch (error) {
       console.error('Error getting quizzes:', error);
@@ -298,7 +298,7 @@ export class QuizzesController {
 
       // Try to get real questions from the database
       console.log(`Generating quiz for subject: ${request.subject}, difficulty: ${request.difficulty}, count: ${request.questionCount}`);
-      
+
       const realQuestions = await this.quizzesService.getQuestionsBySubjectAndDifficulty(
         request.subject,
         request.difficulty,
@@ -318,7 +318,7 @@ export class QuizzesController {
           explanation: q.explanation || `This is the correct answer for question ${index + 1}.`,
           xpValue: this.calculateQuestionXP(q.questionDifficulty)
         }));
-        
+
         console.log(`Found ${realQuestions.length} real questions from database`);
       } else {
         // Fallback to sample questions if no real questions found
@@ -369,7 +369,7 @@ export class QuizzesController {
         text: `Sample ${subject} question ${i + 1} (${difficulty} level)`,
         options: [
           'Option A',
-          'Option B', 
+          'Option B',
           'Option C',
           'Option D'
         ],
@@ -405,7 +405,7 @@ export class QuizzesController {
   async getPopularQuizzes(@Query('limit') limit: string = '10'): Promise<any[]> {
     try {
       const limitNumber = parseInt(limit, 10) || 10;
-      
+
       // Get all quizzes and return the first few as "popular"
       const allQuizzes = await this.quizzesService.findAll();
       return allQuizzes.slice(0, limitNumber);
@@ -433,17 +433,17 @@ export class QuizzesController {
       }
 
       const limitNumber = parseInt(limit, 10) || 10;
-      
+
       // Get all quizzes and filter by search query
       const allQuizzes = await this.quizzesService.findAll();
-      const filteredQuizzes = allQuizzes.filter(quiz => 
+      const filteredQuizzes = allQuizzes.filter(quiz =>
         quiz.title && quiz.title.toLowerCase().includes(query.toLowerCase())
       );
 
       // Apply additional filters
       let finalQuizzes = filteredQuizzes;
       if (subject) {
-        finalQuizzes = finalQuizzes.filter(quiz => 
+        finalQuizzes = finalQuizzes.filter(quiz =>
           quiz.topicId && typeof quiz.topicId === 'object'
         );
       }
@@ -467,10 +467,10 @@ export class QuizzesController {
   async getRecentQuizzes(@Query('limit') limit: string = '10'): Promise<any[]> {
     try {
       const limitNumber = parseInt(limit, 10) || 10;
-      
+
       // Get all quizzes and return the most recent ones
       const allQuizzes = await this.quizzesService.findAll();
-      
+
       // Sort by creation date (assuming there's a createdAt field)
       const sortedQuizzes = allQuizzes.sort((a, b) => {
         const dateA = (a as any).createdAt || new Date(0);
@@ -500,11 +500,11 @@ export class QuizzesController {
       }
 
       const limitNumber = parseInt(limit, 10) || 10;
-      
+
       // For now, return a mix of popular and recent quizzes as recommendations
       // In a real implementation, this would use user preferences, performance history, etc.
       const allQuizzes = await this.quizzesService.findAll();
-      
+
       if (!allQuizzes || allQuizzes.length === 0) {
         return [];
       }
@@ -729,16 +729,16 @@ export class QuizzesController {
         // Since generated quizzes are temporary, we'll return a helpful message
         throw new BadRequestException('Generated quizzes are temporary and cannot be retrieved by ID. Please generate a new quiz.');
       }
-      
+
       return await this.quizzesService.findById(id);
     } catch (error) {
       console.error('Error getting quiz by ID:', error);
-      
+
       // Provide more specific error messages
       if (error.message?.includes('Generated quizzes are temporary')) {
         throw error; // Re-throw our custom message
       }
-        throw new BadRequestException('Failed to get quiz');
+      throw new BadRequestException('Failed to get quiz');
     }
   }
 
@@ -761,56 +761,33 @@ export class QuizzesController {
         selected_subjects: body.selected_subjects,
       });
 
-      const allQuestions: any[] = [];
-      for (const subjectId of body.selected_subjects) {
-        // Validate subjectId
-        if (!Types.ObjectId.isValid(subjectId)) {
-          console.log(`Invalid subjectId: ${subjectId}`);
-          continue;
-        }
-        // Get topics for this subject
-        const topics = await this.topicsService.findBySubject(subjectId);
-        console.log(`Subject ${subjectId}: Found topics:`, topics.map(t => t.topicName));
-        if (!topics || topics.length === 0) {
-          console.log(`No topics found for subject ${subjectId}, skipping`);
-          continue;
-        }
-        // Try all topics for this subject
-        for (const topic of topics) {
-          const config: PersonalizedQuizConfig = {
-            userId: body.user_id,
-            subjectId: subjectId,
-            topicId: topic._id.toString(),
-            questionsCount: 3,
-            sessionType: 'assessment',
-            timeLimit: 30
-          };
-          try {
-            const quizResult = await this.quizzesService.generatePersonalizedQuiz(config);
-            console.log(`Subject ${subjectId}, topic ${topic.topicName}: Generated ${quizResult.questions.length} questions`);
-            allQuestions.push(...quizResult.questions);
-          } catch (error) {
-            console.log(`Could not generate questions for subject ${subjectId}, topic ${topic.topicName}:`, error.message);
-          }
-        }
-      }
-      console.log('Total questions generated for assessment:', allQuestions.length);
-      // console.log('Questions:', allQuestions);
-      if (allQuestions.length === 0) {
+      // Use optimized aggregation pipeline with timeout handling
+      const questions: any = await Promise.race([
+        this.quizzesService.generateAssessmentWithAggregation(body.selected_subjects, 15),
+        new Promise((_, reject) =>
+          setTimeout(() => reject(new Error('Assessment generation timeout')), 25000)
+        )
+      ]);
+
+      console.log('Total questions generated for assessment:', questions.length);
+
+      if (questions.length === 0) {
         throw new BadRequestException('No questions could be generated for the selected subjects');
       }
-      // Remove duplicate questions by _id
-      const uniqueQuestions = Array.from(
-        new Map(allQuestions.map(q => [q._id?.toString() || q.id, q])).values()
-      );
-      const finalQuestions = uniqueQuestions.slice(0, 15);
+
+      // Randomly shuffle and select final questions
+      const shuffledQuestions = questions.sort(() => Math.random() - 0.5);
+      const finalQuestions = shuffledQuestions.slice(0, 15);
+
       console.log('Returning final assessment questions:', finalQuestions.length);
-      console.log('Final Questions:', finalQuestions);
       return {
         questions: finalQuestions
       };
     } catch (error) {
       console.error('Error generating assessment:', error);
+      if (error.message.includes('timeout')) {
+        throw new BadRequestException('Assessment generation is taking too long. Please try again.');
+      }
       throw error;
     }
   }

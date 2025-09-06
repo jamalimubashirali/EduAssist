@@ -1180,4 +1180,129 @@ export class QuizzesService {
       throw error;
     }
   }
+
+  /**
+   * Generate assessment questions using optimized aggregation pipeline
+   */
+  async generateAssessmentWithAggregation(subjectIds: string[], count: number = 15): Promise<any[]> {
+    try {
+      console.log(`[generateAssessmentWithAggregation] Starting optimized assessment generation for ${subjectIds.length} subjects`);
+      const startTime = Date.now();
+      
+      const validSubjectIds = subjectIds
+        .filter(id => Types.ObjectId.isValid(id))
+        .map(id => new Types.ObjectId(id));
+
+      if (validSubjectIds.length === 0) {
+        throw new BadRequestException('No valid subject IDs provided.');
+      }
+
+      // Simplified and reliable aggregation pipeline for assessment generation
+      const questions = await this.questionModel.aggregate([
+        // Match active questions from selected subjects
+        { 
+          $match: { 
+            subjectId: { $in: validSubjectIds }, 
+            isActive: true 
+          } 
+        },
+        // Add random field for shuffling
+        {
+          $addFields: {
+            randomField: { $rand: {} }
+          }
+        },
+        // Sort by random field for shuffling
+        { $sort: { randomField: 1 } },
+        // Group by subject for balanced distribution
+        {
+          $group: {
+            _id: '$subjectId',
+            questions: { $push: '$$ROOT' },
+            count: { $sum: 1 }
+          }
+        },
+        // Take proportional questions from each subject
+        {
+          $project: {
+            _id: 1,
+            questions: {
+              $slice: [
+                '$questions',
+                { $ceil: { $divide: [count, validSubjectIds.length] } }
+              ]
+            }
+          }
+        },
+        { $unwind: '$questions' },
+        { $replaceRoot: { newRoot: '$questions' } },
+        // Remove the random field
+        { $unset: ['randomField'] },
+        // Populate related data efficiently
+        {
+          $lookup: {
+            from: 'topics',
+            localField: 'topicId',
+            foreignField: '_id',
+            as: 'topicData',
+            pipeline: [{ $project: { topicName: 1 } }]
+          }
+        },
+        {
+          $lookup: {
+            from: 'subjects',
+            localField: 'subjectId',
+            foreignField: '_id',
+            as: 'subjectData',
+            pipeline: [{ $project: { subjectName: 1 } }]
+          }
+        },
+        // Transform to expected format
+        {
+          $addFields: {
+            topicId: {
+              _id: '$topicId',
+              topicName: { $arrayElemAt: ['$topicData.topicName', 0] }
+            },
+            subjectId: {
+              _id: '$subjectId',
+              subjectName: { $arrayElemAt: ['$subjectData.subjectName', 0] }
+            }
+          }
+        },
+        { $unset: ['topicData', 'subjectData'] },
+        // Final random selection using sample
+        { $sample: { size: Math.min(count, 50) } } // Limit to prevent errors
+      ]).exec();
+
+      console.log(`[generateAssessmentWithAggregation] Completed in ${Date.now() - startTime}ms, returning ${questions.length} questions`);
+      return questions;
+    } catch (error) {
+      console.error('Error in generateAssessmentWithAggregation:', error);
+      
+      // Fallback to simple query if aggregation fails
+      try {
+        console.log('[generateAssessmentWithAggregation] Falling back to simple query');
+        const fallbackQuestions = await this.questionModel
+          .find({ 
+            subjectId: { $in: subjectIds }, 
+            isActive: true 
+          })
+          .populate('topicId', 'topicName')
+          .populate('subjectId', 'subjectName')
+          .limit(count * 2)
+          .exec();
+        
+        // Shuffle and limit the results
+        const shuffled = fallbackQuestions.sort(() => Math.random() - 0.5);
+        const result = shuffled.slice(0, count);
+        
+        console.log(`[generateAssessmentWithAggregation] Fallback completed, returning ${result.length} questions`);
+        return result;
+      } catch (fallbackError) {
+        console.error('Fallback query also failed:', fallbackError);
+        throw new BadRequestException(`Failed to generate assessment: ${error.message}`);
+      }
+    }
+  }
 }

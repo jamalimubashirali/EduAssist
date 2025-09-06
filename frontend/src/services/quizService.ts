@@ -304,16 +304,53 @@ class QuizService {
 
   async generateAssessment(user_id : string , selected_subjects : string[]){
     try {
-      const response = await api.post(`/quizzes/assessments/generate`, {
-        user_id,
-        selected_subjects
-      });
-      // Backend returns { questions: [...] }
-      const backendQuestions = handleApiResponse(response)?.questions || [];
-      // Convert backend questions to frontend format
-      return backendQuestions.map((q: any) => convertBackendQuestion(q));
+      // Add retry logic with exponential backoff for assessment generation
+      const maxRetries = 2;
+      let lastError;
+      
+      for (let attempt = 0; attempt <= maxRetries; attempt++) {
+        try {
+          const response = await api.post(`/quizzes/assessments/generate`, {
+            user_id,
+            selected_subjects
+          }, {
+            timeout: 45000 + (attempt * 15000) // Increase timeout with each retry
+          });
+          
+          // Backend returns { questions: [...] }
+          const backendQuestions = handleApiResponse(response)?.questions || [];
+          // Convert backend questions to frontend format
+          return backendQuestions.map((q: any) => convertBackendQuestion(q));
+        } catch (error: any) {
+          lastError = error;
+          
+          // Don't retry on client errors (4xx) except timeout
+          if (error.response?.status >= 400 && error.response?.status < 500 && 
+              error.code !== 'ECONNABORTED') {
+            break;
+          }
+          
+          // Wait before retry (exponential backoff)
+          if (attempt < maxRetries) {
+            await new Promise(resolve => setTimeout(resolve, Math.pow(2, attempt) * 1000));
+            console.log(`Assessment generation attempt ${attempt + 1} failed, retrying...`);
+          }
+        }
+      }
+      
+      throw lastError;
     } catch (error) {
-      console.error('Failed to generate assessment:', error);
+      console.error('Failed to generate assessment after retries:', error);
+      
+      // Provide user-friendly error messages
+      if (error.code === 'ECONNABORTED') {
+        throw new Error('Assessment generation is taking longer than expected. Please try again.');
+      } else if (error.response?.status >= 500) {
+        throw new Error('Server is experiencing issues. Please try again in a moment.');
+      } else if (error.message?.includes('timeout')) {
+        throw new Error('Assessment generation timed out. Please try again.');
+      }
+      
       return [];
     }
   }

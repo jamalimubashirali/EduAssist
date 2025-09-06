@@ -8,7 +8,7 @@ const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/a
 // Create axios instance (always real API)
 const api: AxiosInstance = axios.create({
   baseURL: API_BASE_URL,
-  timeout: 30000,
+  timeout: 45000, // Increased timeout for assessment generation
   withCredentials: true, // cookie-based auth
   headers: { 'Content-Type': 'application/json' },
 })

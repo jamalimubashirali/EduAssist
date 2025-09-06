@@ -25,12 +25,21 @@ import { AccessTokenGuard } from 'common/guards/access-token.guard';
       envFilePath: '.env',
     }),
     MongooseModule.forRoot(process.env.MONGO_URI!, {
+      maxPoolSize: 20, // Increase connection pool size for better performance
+      minPoolSize: 5,
+      maxIdleTimeMS: 30000,
+      serverSelectionTimeoutMS: 10000, // Faster server selection timeout
+      socketTimeoutMS: 45000, // Increase socket timeout for long operations
+      bufferCommands: false, // Disable mongoose buffering
       connectionFactory: (connection) => {
         connection.on('connected', () => {
           console.log('✅ Database connected successfully');
         });
         connection.on('error', (error: any) => {
           console.error('❌ Database connection error:', error);
+        });
+        connection.on('disconnected', () => {
+          console.log('⚠️ Database disconnected');
         });
         return connection;
       },

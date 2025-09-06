@@ -10,7 +10,24 @@ async function bootstrap() {
   try {
     logger.log('🚀 Starting EduAssist Backend...');
     
-    const app = await NestFactory.create(AppModule);    // CORS configuration
+    const app = await NestFactory.create(AppModule, {
+      bodyParser: true,
+    });
+    
+    // Configure request timeout for long-running operations like assessment generation
+    app.use((req, res, next) => {
+      // Increase timeout for assessment generation endpoints
+      if (req.url.includes('/assessments/generate') || req.url.includes('/generate-assessment')) {
+        req.setTimeout(60000); // 60 seconds for assessment generation
+        res.setTimeout(60000);
+      } else {
+        req.setTimeout(30000); // 30 seconds for other endpoints
+        res.setTimeout(30000);
+      }
+      next();
+    });
+
+    // CORS configuration
     app.enableCors({
       origin: [
         process.env.FRONTEND_URL || 'http://localhost:3000',
