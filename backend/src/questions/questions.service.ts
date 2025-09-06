@@ -501,4 +501,51 @@ export class QuestionsService {
 
     await this.questionModel.findByIdAndUpdate(questionId, updateData);
   }
+
+  /**
+   * Get questions with subject and topic data using aggregation pipeline
+   */
+  async getQuestionsWithSubjectTopicData(questionIds: Types.ObjectId[]): Promise<any[]> {
+    return await this.questionModel.aggregate([
+      { $match: { _id: { $in: questionIds }, isActive: true } },
+      {
+        $lookup: {
+          from: 'subjects',
+          localField: 'subjectId',
+          foreignField: '_id',
+          as: 'subjectData'
+        }
+      },
+      {
+        $lookup: {
+          from: 'topics',
+          localField: 'topicId',
+          foreignField: '_id',
+          as: 'topicData'
+        }
+      },
+      {
+        $project: {
+          _id: 1,
+          questionText: 1,
+          answerOptions: 1,
+          correctAnswer: 1,
+          explanation: 1,
+          questionDifficulty: 1,
+          tags: 1,
+          timesAsked: 1,
+          timesAnsweredCorrectly: 1,
+          averageTimeToAnswer: 1,
+          subjectId: {
+            _id: '$subjectId',
+            subjectName: { $arrayElemAt: ['$subjectData.subjectName', 0] }
+          },
+          topicId: {
+            _id: '$topicId',
+            topicName: { $arrayElemAt: ['$topicData.topicName', 0] }
+          }
+        }
+      }
+    ]).exec();
+  }
 }

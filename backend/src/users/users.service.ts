@@ -216,61 +216,81 @@ export class UsersService {
                 topicId: string;
             }> = [];
 
-            // Validate answers against correct answers by querying questions
+            // Get all question IDs for batch processing
+            const questionIds = body.answers
+                .filter(answer => Types.ObjectId.isValid(answer.question_id))
+                .map(answer => new Types.ObjectId(answer.question_id));
+
+            if (questionIds.length === 0) {
+                throw new Error('No valid question IDs provided');
+            }
+
+            // Use aggregation pipeline to get all questions with subject/topic data in one query
+            const questionsWithData = await this.questionsService.getQuestionsWithSubjectTopicData(questionIds);
+            console.log('[submitAssessment] Retrieved questions with data:', questionsWithData.length);
+
+            // Create a map for quick lookup
+            const questionMap = new Map(questionsWithData.map(q => [q._id.toString(), q]));
+
+            // Process answers using the retrieved data
             for (const answer of body.answers) {
                 if (!Types.ObjectId.isValid(answer.question_id)) {
                     console.log('[submitAssessment] Invalid question_id, skipping', answer.question_id);
                     continue;
                 }
-                try {
-                    const question = await this.questionsService.findById(answer.question_id);
-                    if (!question) {
-                        console.log('[submitAssessment] question not found, skipping', answer.question_id);
-                        continue;
-                    }
-                    const isCorrect = answer.user_answer === question.correctAnswer;
-                    console.log('[submitAssessment] question checked', { questionId: answer.question_id, isCorrect })
-                    if (isCorrect) {
-                        correctAnswers++;
-                    }
-                    const subjectId = question.subjectId.toString();
-                    const topicId = question.topicId.toString();
-                    // Fetch real subject name
-                    let subjectName = 'Unknown Subject';
-                    try {
-                        const subject = await this.subjectService.findById(subjectId);
-                        subjectName = subject?.subjectName || subjectName;
-                    } catch (err) {
-                        console.log('[submitAssessment] Error fetching subject name', { subjectId, err: err?.message || err })
-                    }
-                    // Track subject performance
-                    if (!subjectStats.has(subjectId)) {
-                        subjectStats.set(subjectId, { correct: 0, total: 0, name: subjectName });
-                    }
-                    const stats = subjectStats.get(subjectId)!;
-                    stats.total++;
-                    if (isCorrect) {
-                        stats.correct++;
-                    }
-                    // Update question statistics
-                    await this.questionsService.updateQuestionStats(
-                        answer.question_id,
-                        isCorrect,
-                        answer.time_taken
-                    );
-                    questionDetails.push({
-                        questionId: answer.question_id,
-                        userAnswer: answer.user_answer,
-                        correctAnswer: question.correctAnswer,
-                        isCorrect,
-                        timeTaken: answer.time_taken,
-                        subjectId,
-                        topicId
-                    });
-                } catch (error) {
-                    console.log('[submitAssessment] Error validating question, continuing', { questionId: answer.question_id, err: error?.message || error })
-                    // Continue with other questions even if one fails
+
+                const question = questionMap.get(answer.question_id);
+                if (!question) {
+                    console.log('[submitAssessment] question not found, skipping', answer.question_id);
+                    continue;
                 }
+
+                const isCorrect = answer.user_answer === question.correctAnswer;
+                console.log('[submitAssessment] question checked', { questionId: answer.question_id, isCorrect });
+
+                if (isCorrect) {
+                    correctAnswers++;
+                }
+
+                // Extract IDs properly from the aggregation result
+                const subjectId = question.subjectId._id ? question.subjectId._id.toString() : question.subjectId.toString();
+                const topicId = question.topicId._id ? question.topicId._id.toString() : question.topicId.toString();
+                const subjectName = question.subjectId.subjectName || 'Unknown Subject';
+
+                // Validate that we have proper ObjectId strings
+                if (!Types.ObjectId.isValid(subjectId) || !Types.ObjectId.isValid(topicId)) {
+                    console.log('[submitAssessment] Invalid ObjectId format, skipping performance update', { 
+                        subjectId, topicId, questionId: answer.question_id 
+                    });
+                    continue;
+                }
+
+                // Track subject performance
+                if (!subjectStats.has(subjectId)) {
+                    subjectStats.set(subjectId, { correct: 0, total: 0, name: subjectName });
+                }
+                const stats = subjectStats.get(subjectId)!;
+                stats.total++;
+                if (isCorrect) {
+                    stats.correct++;
+                }
+
+                // Update question statistics (async, don't wait)
+                this.questionsService.updateQuestionStats(
+                    answer.question_id,
+                    isCorrect,
+                    answer.time_taken
+                ).catch(err => console.log('[submitAssessment] Error updating question stats:', err.message));
+
+                questionDetails.push({
+                    questionId: answer.question_id,
+                    userAnswer: answer.user_answer,
+                    correctAnswer: question.correctAnswer,
+                    isCorrect,
+                    timeTaken: answer.time_taken,
+                    subjectId,
+                    topicId
+                });
             }
 
             // Prevent division by zero
@@ -294,18 +314,13 @@ export class UsersService {
                     const subjectQuestions = questionDetails.filter(q => q.subjectId === subjectId);
                     const topicPerformance = new Map<string, { correct: number; total: number; name: string }>();
 
-                    // Calculate performance per topic
+                    // Calculate performance per topic using data from aggregation
                     for (const question of subjectQuestions) {
                         const topicId = question.topicId;
                         if (!topicPerformance.has(topicId)) {
-                            // Fetch real topic name
-                            let topicName = 'Unknown Topic';
-                            try {
-                                const topic = await this.topicService.findById(topicId);
-                                topicName = topic?.topicName || topicName;
-                            } catch (err) {
-                                console.log('[submitAssessment] Error fetching topic name', { topicId, err: err?.message || err })
-                            }
+                            // Get topic name from the question data (already fetched via aggregation)
+                            const questionData = questionMap.get(question.questionId);
+                            const topicName = questionData?.topicId?.topicName || 'Unknown Topic';
                             topicPerformance.set(topicId, { correct: 0, total: 0, name: topicName });
                         }
                         const topicStats = topicPerformance.get(topicId)!;
@@ -410,70 +425,45 @@ export class UsersService {
 
             console.log('[submitAssessment] results assembled', { overall_score: results.overall_score, xp_earned: results.xp_earned })
 
-            // --- Create Assessment Attempt Record ---
+            // --- Skip Assessment Attempt Record for now ---
+            // Assessment attempts require quizId and topicId which are not applicable for multi-subject assessments
+            // We'll track assessment results through other means (onboarding data, performance records)
             let attemptId: string | null = null;
-            try {
-                const attemptData = {
-                    userId: new Types.ObjectId(body.user_id),
-                    quizId: null, // Assessment doesn't have a specific quiz
-                    topicId: null, // Assessment covers multiple topics
-                    subjectId: null, // Assessment covers multiple subjects
-                    startedAt: new Date(body.started_at),
-                    completedAt: new Date(body.completed_at),
-                    isCompleted: true,
-                    score: overallScore,
-                    percentageScore: overallScore,
-                    correctAnswers: correctAnswers,
-                    totalQuestions: totalQuestions,
-                    timeTaken: Math.floor((new Date(body.completed_at).getTime() - new Date(body.started_at).getTime()) / 1000),
-                    answersRecorded: body.answers.map(answer => {
-                        const detail = questionDetails.find(d => d.questionId === answer.question_id);
-                        return {
-                            questionId: new Types.ObjectId(answer.question_id),
-                            selectedAnswer: answer.user_answer,
-                            isCorrect: detail?.isCorrect || false,
-                            timeSpent: answer.time_taken,
-                            answeredAt: new Date()
-                        };
-                    }),
-                    performanceMetrics: {
-                        averageTimePerQuestion: Math.round(results.assessment_duration / totalQuestions),
-                        streakCount: correctAnswers,
-                        fastestQuestion: Math.min(...body.answers.map(a => a.time_taken)),
-                        slowestQuestion: Math.max(...body.answers.map(a => a.time_taken)),
-                        difficultyBreakdown: {
-                            easy: questionDetails.filter(q => q.isCorrect).length,
-                            medium: Math.floor(questionDetails.length * 0.3),
-                            hard: Math.floor(questionDetails.length * 0.2)
-                        }
-                    }
-                };
-
-                console.log('[submitAssessment] saving attempt record', { userId: body.user_id, totalQuestions })
-                const newAttempt = new this.attemptModel(attemptData);
-                const savedAttempt = await newAttempt.save();
-                attemptId = savedAttempt._id.toString();
-                console.log('[submitAssessment] attempt saved', { attemptId })
-            } catch (error) {
-                console.log('[submitAssessment] Error recording assessment attempt (continuing)', error?.message || error);
-                // Continue without failing the assessment
-            }
+            console.log('[submitAssessment] Skipping attempt record creation for assessment (schema requires quizId/topicId)');
 
             // Store assessment results for performance tracking
             try {
                 console.log('[submitAssessment] updating performance records', { detailsCount: questionDetails.length })
                 for (const detail of questionDetails) {
-                    await this.performanceService.updatePerformance(
-                        body.user_id,
-                        detail.topicId,
-                        detail.subjectId,
-                        {
-                            score: detail.isCorrect ? 100 : 0,
-                            timeSpent: detail.timeTaken,
-                            questionsAnswered: 1,
-                            correctAnswers: detail.isCorrect ? 1 : 0
-                        }
-                    );
+                    // Validate ObjectIds before calling performance service
+                    if (!Types.ObjectId.isValid(detail.topicId) || !Types.ObjectId.isValid(detail.subjectId)) {
+                        console.log('[submitAssessment] Skipping performance update for invalid ObjectIds', {
+                            topicId: detail.topicId,
+                            subjectId: detail.subjectId,
+                            questionId: detail.questionId
+                        });
+                        continue;
+                    }
+
+                    try {
+                        await this.performanceService.updatePerformance(
+                            body.user_id,
+                            detail.topicId,
+                            detail.subjectId,
+                            {
+                                score: detail.isCorrect ? 100 : 0,
+                                timeSpent: detail.timeTaken,
+                                questionsAnswered: 1,
+                                correctAnswers: detail.isCorrect ? 1 : 0
+                            }
+                        );
+                    } catch (perfError) {
+                        console.log('[submitAssessment] Error updating individual performance record', {
+                            error: perfError?.message || perfError,
+                            topicId: detail.topicId,
+                            subjectId: detail.subjectId
+                        });
+                    }
                 }
                 console.log('[submitAssessment] performance records updated')
             } catch (error) {
@@ -526,6 +516,12 @@ export class UsersService {
             // Generate recommendations for each weak subject
             for (const subject of assessmentResults.subject_analysis) {
                 if (subject.score_percentage < 60) {
+                    // Validate subject_id before using it
+                    if (!Types.ObjectId.isValid(subject.subject_id)) {
+                        console.log('[generateIntelligentRecommendations] Invalid subject_id, skipping', subject.subject_id);
+                        continue;
+                    }
+
                     try {
                         const recommendation = await this.recommendationsService.generateRecommendationFromAttempt(
                             userId,
@@ -561,6 +557,12 @@ export class UsersService {
             // Generate advancement recommendations for strong subjects
             for (const subject of assessmentResults.subject_analysis) {
                 if (subject.score_percentage >= 80) {
+                    // Validate subject_id before using it
+                    if (!Types.ObjectId.isValid(subject.subject_id)) {
+                        console.log('[generateIntelligentRecommendations] Invalid subject_id for advancement, skipping', subject.subject_id);
+                        continue;
+                    }
+
                     try {
                         const recommendation = await this.recommendationsService.generateRecommendationFromAttempt(
                             userId,

@@ -1260,14 +1260,8 @@ export class QuizzesService {
         // Transform to expected format
         {
           $addFields: {
-            topicId: {
-              _id: '$topicId',
-              topicName: { $arrayElemAt: ['$topicData.topicName', 0] }
-            },
-            subjectId: {
-              _id: '$subjectId',
-              subjectName: { $arrayElemAt: ['$subjectData.subjectName', 0] }
-            }
+            'topicId.topicName': { $arrayElemAt: ['$topicData.topicName', 0] },
+            'subjectId.subjectName': { $arrayElemAt: ['$subjectData.subjectName', 0] }
           }
         },
         { $unset: ['topicData', 'subjectData'] },
