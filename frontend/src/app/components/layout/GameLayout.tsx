@@ -36,15 +36,15 @@ const navigation = [
   { name: 'Dashboard', href: '/dashboard', icon: Home },
   { name: 'Subjects', href: '/subjects', icon: BookOpen },
   { name: 'Quiz Arena', href: '/quiz', icon: Brain },
-  { name: 'Daily Challenge', href: '/daily-challenge', icon: Calendar },
+  // { name: 'Daily Challenge', href: '/daily-challenge', icon: Calendar },
   { name: 'Recommendations', href: '/recommendations', icon: Lightbulb },
   { name: 'Progress', href: '/progress', icon: TrendingUp },
   { name: 'Quests', href: '/quests', icon: Target },
   { name: 'Streak', href: '/streak', icon: Flame },
   { name: 'Badges', href: '/badges', icon: Award },
-  { name: 'Milestones', href: '/milestones', icon: Milestone },
+  // { name: 'Milestones', href: '/milestones', icon: Milestone },
   { name: 'Leaderboard', href: '/leaderboard', icon: Trophy },
-  { name: 'Shop', href: '/shop', icon: ShoppingBag },
+  // { name: 'Shop', href: '/shop', icon: ShoppingBag },
   { name: 'Profile', href: '/profile', icon: User },
 ]
 

@@ -136,17 +136,17 @@ export function usePostOnboardingExperience() {
             })
         }
 
-        // Add study plan action if available
-        if (studyPlan && studyPlan.currentMilestone) {
-            actions.push({
-                type: 'study_plan',
-                title: 'Continue Study Plan',
-                description: studyPlan.currentMilestone.title,
-                priority: 'medium',
-                xpReward: 75,
-                route: '/study-plan'
-            })
-        }
+        // // Add study plan action if available
+        // if (studyPlan && studyPlan.currentMilestone) {
+        //     actions.push({
+        //         type: 'study_plan',
+        //         title: 'Continue Study Plan',
+        //         description: studyPlan.currentMilestone.title,
+        //         priority: 'medium',
+        //         xpReward: 75,
+        //         route: '/study-plan'
+        //     })
+        // }
 
         return actions.slice(0, 3) // Return top 3 actions
     }, [personalizedContent, recommendations, studyPlan])

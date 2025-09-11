@@ -1,15 +1,15 @@
 import {
-    Body,
-    Controller,
-    Get,
-    Param,
-    Post,
-    Delete,
-    HttpStatus,
-    HttpCode,
-    Patch,
-    NotFoundException,
-    Req,
+  Body,
+  Controller,
+  Get,
+  Param,
+  Post,
+  Delete,
+  HttpStatus,
+  HttpCode,
+  Patch,
+  NotFoundException,
+  Req,
 } from '@nestjs/common';
 import { UsersService } from './users.service';
 import { CreateUserDto } from './dto/create.user.dto';
@@ -21,53 +21,61 @@ import { Request } from 'express';
 
 @Controller('users')
 export class UsersController {
-    constructor(
-        private userService: UsersService,
-    ) {}
+  constructor(
+    private userService: UsersService,
+  ) { }
 
-    @Post()
-    @HttpCode(HttpStatus.CREATED)
-    async createUser(@Body() createUserDto: CreateUserDto): Promise<User> {
-        return await this.userService.createUser(createUserDto);
-    }
+  @Post()
+  @HttpCode(HttpStatus.CREATED)
+  async createUser(@Body() createUserDto: CreateUserDto): Promise<User> {
+    return await this.userService.createUser(createUserDto);
+  }
 
-    @Get()
-    @HttpCode(HttpStatus.OK)
-    async getAllUsers(): Promise<User[]> {
-        return await this.userService.findAll();
-    }   
-    
-    @Get("me")
-    @HttpCode(HttpStatus.OK)
-    async getCurrentUser(@Req() req: Request): Promise<User | null> {
-        const userId = req.user!['sub']; // JWT payload uses 'sub' for userId
-        const user = await this.userService.findById(userId);
-        if(!user) {
-            throw new NotFoundException("User Not Found");
-        }
-        return user;
-    }
+  @Get()
+  @HttpCode(HttpStatus.OK)
+  async getAllUsers(): Promise<User[]> {
+    return await this.userService.findAll();
+  }
 
-    @Get(':id')
-    @HttpCode(HttpStatus.OK)
-    async getUserById(@Param('id') id: string): Promise<User> {
-        return await this.userService.findById(id);
+  @Get("me")
+  @HttpCode(HttpStatus.OK)
+  async getCurrentUser(@Req() req: Request): Promise<User | null> {
+    const userId = req.user!['sub']; // JWT payload uses 'sub' for userId
+    const user = await this.userService.findById(userId);
+    if (!user) {
+      throw new NotFoundException("User Not Found");
     }
+    return user;
+  }
 
-    @Patch(':id')
-    @HttpCode(HttpStatus.OK)
-    async updateUser(
-        @Param('id') id: string,
-        @Body() updateUserDto: UpdateUserDto
-    ): Promise<User> {
-        return await this.userService.updateUser(id, updateUserDto);
-    }
+  // Get user preferences
+  @Get('/preferences')
+  @HttpCode(HttpStatus.OK)
+  async getUserPreferences(@Req() req: Request) {
+    const userId = req.user!['sub'];
+    return this.userService.getUserPreferences(userId);
+  }
 
-    @Delete(':id')
-    @HttpCode(HttpStatus.NO_CONTENT)
-    async deleteUser(@Param('id') id: string): Promise<void> {
-        await this.userService.deleteUser(id);
-    }
+  @Get(':id')
+  @HttpCode(HttpStatus.OK)
+  async getUserById(@Param('id') id: string): Promise<User> {
+    return await this.userService.findById(id);
+  }
+
+  @Patch(':id')
+  @HttpCode(HttpStatus.OK)
+  async updateUser(
+    @Param('id') id: string,
+    @Body() updateUserDto: UpdateUserDto
+  ): Promise<User> {
+    return await this.userService.updateUser(id, updateUserDto);
+  }
+
+  @Delete(':id')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  async deleteUser(@Param('id') id: string): Promise<void> {
+    await this.userService.deleteUser(id);
+  }
 
   // Onboarding endpoints
   @Patch(':id/onboarding')

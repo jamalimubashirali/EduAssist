@@ -429,7 +429,7 @@ export default function QuizResultsPage() {
         >
           <h2 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
             <Brain className="w-5 h-5 text-purple-400" />
-            Question Analysis
+            Attempted Questions Breakdown
           </h2>
           <div className="grid grid-cols-5 md:grid-cols-10 gap-2">
             {(attempt?.answersRecorded || []).map((rec: any, index: number) => (
@@ -458,7 +458,7 @@ export default function QuizResultsPage() {
         </motion.div>
 
         {/* Improvement Suggestions */}
-        <motion.div
+        {/* <motion.div
           className="game-card p-6"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -476,10 +476,10 @@ export default function QuizResultsPage() {
               </li>
             ))}
           </ul>
-        </motion.div>
+        </motion.div> */}
 
         {/* Recommended Next Quizzes */}
-        <motion.div
+        {/* <motion.div
           className="game-card p-6"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -505,10 +505,10 @@ export default function QuizResultsPage() {
               </motion.button>
             ))}
           </div>
-        </motion.div>
+        </motion.div> */}
 
         {/* Enhanced Assessment */}
-        {attemptResults && currentStep >= 3 && (
+        {/* {attemptResults && currentStep >= 3 && (
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -547,7 +547,7 @@ export default function QuizResultsPage() {
               ]}
             />
           </motion.div>
-        )}
+        )} */}
 
         {/* Comprehensive Recommendations from Backend */}
         <AnimatePresence>

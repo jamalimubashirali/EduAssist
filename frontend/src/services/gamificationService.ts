@@ -1,5 +1,6 @@
 import api, { handleApiResponse, handleApiError } from '@/lib/api'
 import { Badge, Quest, Streak, Achievement, GameNotification, User } from '@/types'
+import { calculateLevel } from '@/lib/utils'
 
 // Gamification-specific types
 export interface UserStats {
@@ -81,10 +82,6 @@ class GamificationService {
     }
   }
 
-  // Calculate level from XP using existing user service logic
-  calculateLevel(xp: number): number {
-    return Math.floor(Math.sqrt(xp / 100)) + 1
-  }
 
   // Get user rank from leaderboard endpoint
   async getUserRank(userId: string): Promise<number> {
@@ -163,9 +160,9 @@ class GamificationService {
       const response = await api.patch(`/users/${userId}/xp`, { xpGained, source })
       const updatedUser = handleApiResponse(response)
       
-      const newLevel = this.calculateLevel(updatedUser.xp_points)
+      const newLevel = calculateLevel(updatedUser.xp_points)
       const previousXP = updatedUser.xp_points - xpGained
-      const previousLevel = this.calculateLevel(previousXP)
+      const previousLevel = calculateLevel(previousXP)
 
       return {
         xp: updatedUser.xp_points,
@@ -197,7 +194,7 @@ class GamificationService {
         userId: entry.userId || entry.user?._id,
         userName: entry.userName || entry.user?.name || 'Anonymous',
         avatar: entry.avatar || entry.user?.avatar,
-        level: this.calculateLevel(entry.totalXP || entry.xp_points || 0),
+        level: calculateLevel(entry.totalXP || entry.xp_points || 0),
         totalXP: entry.totalXP || entry.xp_points || 0,
         averageScore: entry.averageScore || entry.score || 0,
         currentStreak: entry.currentStreak || entry.streakCount || 0,

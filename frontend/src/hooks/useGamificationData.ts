@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { gamificationService } from '@/services/gamificationService';
-import { Badge, Quest, Streak, Achievement, UserGamificationStats, LeaderboardEntry } from '@/types';
+import { Badge, Quest, Streak, Achievement, LeaderboardEntry } from '@/types';
 import { useUserStore } from '@/stores/useUserStore';
 import { useGamificationStore } from '@/stores/useGamificationStore';
 import { toast } from 'sonner';

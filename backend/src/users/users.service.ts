@@ -259,8 +259,8 @@ export class UsersService {
 
                 // Validate that we have proper ObjectId strings
                 if (!Types.ObjectId.isValid(subjectId) || !Types.ObjectId.isValid(topicId)) {
-                    console.log('[submitAssessment] Invalid ObjectId format, skipping performance update', { 
-                        subjectId, topicId, questionId: answer.question_id 
+                    console.log('[submitAssessment] Invalid ObjectId format, skipping performance update', {
+                        subjectId, topicId, questionId: answer.question_id
                     });
                     continue;
                 }
@@ -505,6 +505,49 @@ export class UsersService {
             console.log('[submitAssessment] failed', { error: error?.message || error })
             throw new Error(`Failed to submit assessment: ${error.message}`);
         }
+    }
+
+    // Get User Prefrences
+    async getUserPreferences(userId: string): Promise<{ preferences: { id: string; name: string }[] }> {
+        if (!Types.ObjectId.isValid(userId)) {
+            throw new NotFoundException('User not found');
+        }
+
+        const pipeline = [
+            { $match: { _id: new Types.ObjectId(userId) } },
+            {
+                $lookup: {
+                    from: 'subjects', // collection name for subjects
+                    localField: 'preferences',
+                    foreignField: '_id',
+                    as: 'preferredSubjects'
+                }
+            },
+            {
+                $project: {
+                    _id: 0,
+                    preferences: {
+                        $map: {
+                            input: '$preferredSubjects',
+                            as: 's',
+                            in: {
+                                id: { $toString: '$$s._id' },
+                                subjectName: '$$s.subjectName',
+                                subjectDescription : '$$s.subjectDescription'
+                            }
+                        }
+                    }
+                }
+            },
+            { $limit: 1 }
+        ];
+
+        const [result] = await this.userModel.aggregate(pipeline).exec();
+        if (!result) {
+            throw new NotFoundException('User not found');
+        }
+
+        return result.preferences || []
     }
 
 

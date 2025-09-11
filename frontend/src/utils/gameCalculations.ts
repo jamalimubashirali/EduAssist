@@ -1,4 +1,5 @@
 import { User } from '@/types'
+import { calculateLevel } from '@/lib/utils'
 
 export interface GameStats {
   currentXP: number
@@ -77,14 +78,6 @@ export function calculateStreakStats(user: User | null): StreakStats {
   }
 }
 
-/**
- * Calculate level from XP points
- * @param xp - Experience points
- * @returns Calculated level
- */
-export function calculateLevelFromXP(xp: number): number {
-  return Math.floor(Math.sqrt(xp / 100)) + 1
-}
 
 /**
  * Calculate XP required for a specific level
@@ -101,7 +94,7 @@ export function calculateXPForLevel(level: number): number {
  * @returns XP needed for next level
  */
 export function calculateXPForNextLevel(currentXP: number): number {
-  const currentLevel = calculateLevelFromXP(currentXP)
+  const currentLevel = calculateLevel(currentXP)
   const xpForNextLevel = calculateXPForLevel(currentLevel + 1)
   return xpForNextLevel - currentXP
 }
