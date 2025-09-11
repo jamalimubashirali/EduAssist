@@ -206,7 +206,7 @@ export default function QuizArena() {
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.5, delay: 0.3 + index * 0.1 }}
                 >
-                  <Link href={`/quiz/${subject.id}`}>
+                  <Link href={`/subjects/${subject.id}`}>
                     <div className="game-card p-6 hover:scale-105 transition-all duration-200 cursor-pointer group">
                       <div className="flex items-start gap-4">
                         <div className={`w-16 h-16 bg-gradient-to-r rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform duration-200`}>

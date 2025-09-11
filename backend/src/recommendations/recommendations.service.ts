@@ -5,11 +5,13 @@ import { Recommendation } from './schema/recommendations.schema';
 import { CreateRecommendationDto } from './dto/create-recommendation.dto';
 import { UpdateRecommendationDto } from './dto/update-recommendation.dto';
 import { RecommendationStatus, DifficultyLevel } from 'common/enums';
+import { Quiz } from '../quizzes/schema/quizzes.schema'; // Import Quiz schema
 
 @Injectable()
 export class RecommendationsService {
   constructor(
-    @InjectModel(Recommendation.name) private recommendationModel: Model<Recommendation>
+    @InjectModel(Recommendation.name) private recommendationModel: Model<Recommendation>,
+    @InjectModel(Quiz.name) private quizModel: Model<Quiz>, // Inject Quiz model
   ) {}
 
   async create(createRecommendationDto: CreateRecommendationDto): Promise<Recommendation | null> {
@@ -87,13 +89,12 @@ export class RecommendationsService {
   async findByUser(userId: string): Promise<Recommendation[]> {
     if (!Types.ObjectId.isValid(userId)) {
       throw new NotFoundException('Invalid user ID format');
-    }
-
-    return await this.recommendationModel
+    }    return await this.recommendationModel
       .find({ userId: new Types.ObjectId(userId) })
       .populate('subjectId', 'subjectName')
       .populate('topicId', 'topicName')
       .populate('attemptId', 'score timeTaken')
+      .populate('recommendedQuizzes') // Populate the new field
       .sort({ createdAt: -1 })
       .exec();
   }
@@ -225,16 +226,37 @@ export class RecommendationsService {
           learningStyle: userOnboardingData?.learningStyle || 'BALANCED',
           personalizedFactors: personalizedRecommendation.factors
         }
-      };
-
-      const newRecommendation = new this.recommendationModel(recommendationData);
+      };      const newRecommendation = new this.recommendationModel(recommendationData);
       const savedRecommendation = await newRecommendation.save();
-      
+
+      // New: After saving, find and attach recommended existing quizzes using aggregation pipeline
+      const matchingQuizzes = await this.quizModel.aggregate([
+        {
+          $match: {
+            subjectId: new Types.ObjectId(subjectId),
+            topicId: topicId ? new Types.ObjectId(topicId) : { $exists: true }, // Match topic if provided
+            difficulty: recommendationData.suggestedDifficulty, // Match suggested difficulty
+            isPublished: true, // Only published quizzes
+          },
+        },
+        { $sample: { size: 5 } }, // Randomly sample up to 5 matching quizzes for variety
+        { $project: { _id: 1 } }, // Only return IDs
+      ]);
+
+      const quizIds = matchingQuizzes.map((q) => q._id);
+
+      // Update the saved recommendation with recommended quiz IDs
+      await this.recommendationModel.updateOne(
+        { _id: savedRecommendation._id },
+        { $set: { recommendedQuizzes: quizIds } }
+      );
+
       return await this.recommendationModel
         .findById(savedRecommendation._id)
         .populate('subjectId', 'subjectName')
         .populate('topicId', 'topicName')
         .populate('attemptId', 'score timeTaken')
+        .populate('recommendedQuizzes') // Populate the new field
         .exec();
     } catch (error) {
       console.error('Error saving recommendation:', error);
