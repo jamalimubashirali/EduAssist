@@ -4,7 +4,6 @@ import { useState, useEffect, useRef, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useRouter, useParams } from "next/navigation";
 import { useUserStore } from "@/stores/useUserStore";
-import { userService } from "@/services/userService";
 import { useXP } from "@/hooks/useXP";
 import { useGamificationStore } from "@/stores/useGamificationStore";
 import { useNotificationStore } from "@/stores/useNotificationStore";
@@ -14,7 +13,6 @@ import { useUpdateUserXP, useUpdateUserStreak } from "@/hooks/useUserData";
 import { recommendationService } from "@/services/recommendationService";
 import { performanceService } from "@/services/performanceService";
 import { attemptService } from "@/services/attemptService";
-import { quizService } from "@/services/quizService";
 import {
   Trophy,
   Star,
@@ -25,12 +23,10 @@ import {
   RotateCcw,
   Home,
   Share2,
-  Award,
   CheckCircle,
   XCircle,
   Brain,
   Sparkles,
-  ArrowRight,
   Lightbulb,
   BookOpen,
   AlertCircle,
@@ -560,98 +556,6 @@ export default function QuizResultsPage() {
             </span>
           </div>
         </motion.div>
-
-        {/* Improvement Suggestions */}
-        <motion.div
-          className="game-card p-6"
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 1.4, duration: 0.6 }}
-        >
-          <h2 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
-            <TrendingUp className="w-5 h-5 text-blue-400" />
-            Areas for Improvement
-          </h2>
-          <ul className="space-y-2">
-            {(attempt as any)?.feedback?.suggestions?.map((suggestion: any, index: number) => (
-              <li key={index} className="flex items-start gap-2 text-gray-300">
-                <Target className="w-4 h-4 text-blue-400 mt-0.5 flex-shrink-0" />
-                {suggestion.text}
-              </li>
-            ))}
-          </ul>
-        </motion.div>
-
-        {/* Recommended Next Quizzes */}
-        <motion.div
-          className="game-card p-6"
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 1.6, duration: 0.6 }}
-        >
-          <h2 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
-            <Lightbulb className="w-5 h-5 text-purple-400" />
-            Recommended Next Steps
-          </h2>
-          <div className="grid md:grid-cols-3 gap-4">
-            {(attempt as any)?.feedback?.recommendations?.map((quiz: any) => (
-              <motion.button
-                key={quiz.id}
-                onClick={() => handleTakeRecommended(quiz.id)}
-                className="p-4 bg-gray-800/50 rounded-lg border border-gray-700 hover:border-purple-500 transition-all duration-300 text-left group"
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-              >
-                <h3 className="text-white font-semibold mb-2 group-hover:text-purple-400 transition-colors">
-                  {quiz.title}
-                </h3>
-                <span className="text-sm text-gray-400 capitalize">{quiz.difficulty}</span>
-              </motion.button>
-            ))}
-          </div>
-        </motion.div>
-
-        {/* Enhanced Assessment */}
-        {attemptResults && currentStep >= 3 && (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 2, duration: 0.6 }}
-          >
-            <QuizAssessment
-              results={{
-                score: attemptResults.score,
-                correctAnswers: attemptResults.correctAnswers,
-                totalQuestions: attemptResults.totalQuestions,
-                timeSpent: attemptResults.timeSpent * 60, // Convert back to seconds
-                timeLimit: attemptResults.timeLimit,
-                difficulty: attemptResults.performance.rank,
-                xpEarned: attemptResults.xpEarned,
-                answers: attempt?.answersRecorded?.map((answer: any, index: number) => ({
-                  questionId: (answer.questionId && (answer.questionId._id || answer.questionId)) || `q${index}`,
-                  isCorrect: !!answer.isCorrect,
-                  timeSpent: answer.timeSpent ?? 0,
-                  selectedAnswer: typeof answer.selectedAnswer === 'string' ? parseInt(answer.selectedAnswer, 10) : (answer.selectedAnswer ?? -1),
-                  correctAnswer: (answer as any).correctAnswer != null ? (answer as any).correctAnswer : undefined
-                })) || []
-              }}
-              recommendations={[
-                {
-                  type: 'improvement',
-                  title: 'Focus on Time Management',
-                  description: 'You spent more time on some questions. Practice with timed quizzes to improve speed.',
-                  actionable: 'Try taking practice quizzes with shorter time limits'
-                },
-                {
-                  type: 'strength',
-                  title: 'Strong Foundation',
-                  description: 'You demonstrated good understanding of core concepts.',
-                  actionable: 'Continue building on this foundation with advanced topics'
-                }
-              ]}
-            />
-          </motion.div>
-        )}
 
         {/* Comprehensive Recommendations from Backend */}
         <AnimatePresence>
