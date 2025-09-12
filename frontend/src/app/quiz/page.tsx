@@ -5,8 +5,9 @@ import { motion } from 'framer-motion'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import GameLayout from '@/app/components/layout/GameLayout'
-import { useQuizStats, usePopularQuizzes, useQuizzes } from '@/hooks/useQuizData'
-import { useUserStore } from '@/stores/useUserStore'
+import { usePopularQuizzes, useQuizzes } from '@/hooks/useQuizData'
+import { useUserStore } from '@/stores/useUserStore';
+import { useUserPreferences } from '@/hooks/useUserData';
 import {
   Brain,
   Calculator,
@@ -29,76 +30,41 @@ import {
 } from 'lucide-react'
 import { QuickQuizButton, ChallengeQuizButton, SubjectQuizButton } from '../components/quiz/StartQuizButton'
 
-const subjects = [
-  {
-    id: 'math',
-    name: 'Mathematics',
-    icon: Calculator,
-    color: 'from-blue-500 to-blue-600',
-    description: 'Numbers, equations, and problem solving',
-    quizCount: 12,
-    avgXP: 150
-  },
-  {
-    id: 'science',
-    name: 'Science',
-    icon: Atom,
-    color: 'from-green-500 to-green-600',
-    description: 'Physics, chemistry, and biology',
-    quizCount: 8,
-    avgXP: 175
-  },
-  {
-    id: 'english',
-    name: 'English',
-    icon: BookOpen,
-    color: 'from-purple-500 to-purple-600',
-    description: 'Language, literature, and writing',
-    quizCount: 10,
-    avgXP: 125
-  },
-  {
-    id: 'history',
-    name: 'History',
-    icon: Globe,
-    color: 'from-orange-500 to-orange-600',
-    description: 'Past events and civilizations',
-    quizCount: 6,
-    avgXP: 140
-  }
-]
-
 export default function QuizArena() {
   const { user } = useUserStore()
   const router = useRouter()
   const { data: popularQuizzes, isLoading } = usePopularQuizzes(6)
   const { data: allQuizzes, isLoading: isAllQuizzesLoading } = useQuizzes({ limit: 50 })
-  const [activeTab, setActiveTab] = useState<'subjects' | 'quizzes'>('subjects')
+  const [activeTab, setActiveTab] = useState<'subjects' | 'quizzes'>('subjects');
+  const { data: preferences } = useUserPreferences();
 
-  useEffect(() => {
-    if (!user) {
-      router.push('/login')
-    }
-  }, [user, router])
+  // useEffect(() => {
+  //   if (!user) {
+  //     router.push('/login')
+  //   }
+  // }, [user, router])
 
   // Quiz list state
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedSubject, setSelectedSubject] = useState<string>('all')
   const [selectedDifficulty, setSelectedDifficulty] = useState<string>('all')
-  const [sortBy, setSortBy] = useState<'popular' | 'recent' | 'difficulty'>('popular')
+  // const [sortBy, setSortBy] = useState<'popular' | 'recent' | 'difficulty'>('popular')
 
   // Use real quizzes from API instead of mock data
   const quizzes = activeTab === 'quizzes' ? (allQuizzes || []) : (popularQuizzes || [])
 
+  console.log("Available Quizzes :", quizzes);
+
   // Filter quizzes based on search and filters
   const filteredQuizzes = quizzes.filter(quiz => {
     const matchesSearch = quiz.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         quiz.subject.toLowerCase().includes(searchTerm.toLowerCase())
+                         quiz.subjectName.toLowerCase().includes(searchTerm.toLowerCase())
     const matchesSubject = selectedSubject === 'all' || quiz.subject.toLowerCase() === selectedSubject.toLowerCase()
     const matchesDifficulty = selectedDifficulty === 'all' || quiz.difficulty.toLowerCase() === selectedDifficulty.toLowerCase()
 
     return matchesSearch && matchesSubject && matchesDifficulty
   })
+
 
   return (
     <GameLayout>
@@ -133,7 +99,7 @@ export default function QuizArena() {
               </Link>
               <div className="text-right">
                 <div className="text-2xl font-bold text-yellow-400">
-                  {activeTab === 'subjects' ? subjects.length : filteredQuizzes.length}
+                  {activeTab === 'subjects' ? (preferences && preferences.length) : filteredQuizzes.length}
                 </div>
                 <div className="text-gray-400 text-sm">
                   {activeTab === 'subjects' ? 'Subjects Available' : 'Quizzes Available'}
@@ -221,12 +187,17 @@ export default function QuizArena() {
         >
           <div className="flex items-center gap-3 mb-6">
             <BookOpen className="w-6 h-6 text-blue-400" />
-            <h2 className="text-2xl font-bold text-white">Choose Your Subject</h2>
+            <h2 className="text-2xl font-bold text-white">Choose Your Subject to practice</h2>
           </div>
           
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {subjects.map((subject, index) => {
-              const Icon = subject.icon
+            {preferences && preferences.map((subject, index) => {
+              
+              const Icon = subject.subjectName.toLowerCase() === 'mathematics' ? Calculator :
+                           subject.subjectName.toLowerCase() === 'science' ? Atom :
+                           subject.subjectName.toLowerCase() === 'language' ? BookOpen :
+                           subject.subjectName.toLowerCase() === 'history' ? Globe :
+                           Brain; // Default icon
               
               return (
                 <motion.div
@@ -235,23 +206,23 @@ export default function QuizArena() {
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.5, delay: 0.3 + index * 0.1 }}
                 >
-                  <Link href={`/quiz/${subject.id}`}>
+                  <Link href={`/subjects/${subject.id}`}>
                     <div className="game-card p-6 hover:scale-105 transition-all duration-200 cursor-pointer group">
                       <div className="flex items-start gap-4">
-                        <div className={`w-16 h-16 bg-gradient-to-r ${subject.color} rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform duration-200`}>
+                        <div className={`w-16 h-16 bg-gradient-to-r rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform duration-200`}>
                           <Icon className="w-8 h-8 text-white" />
                         </div>
                         
                         <div className="flex-1">
                           <h3 className="text-xl font-bold text-white mb-2">
-                            {subject.name}
+                            {subject.subjectName}
                           </h3>
                           <p className="text-gray-400 text-sm mb-4">
-                            {subject.description}
+                            {subject.subjectDescription}
                           </p>
                           
                           <div className="flex items-center gap-4 text-sm">
-                            <div className="flex items-center gap-1 text-blue-400">
+                            {/* <div className="flex items-center gap-1 text-blue-400">
                               <Brain className="w-4 h-4" />
                               <span>{subject.quizCount} quizzes</span>
                             </div>
@@ -259,7 +230,7 @@ export default function QuizArena() {
                             <div className="flex items-center gap-1 text-yellow-400">
                               <Zap className="w-4 h-4" />
                               <span>~{subject.avgXP} XP avg</span>
-                            </div>
+                            </div> */}
                           </div>
                         </div>
                         

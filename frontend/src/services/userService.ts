@@ -2,6 +2,7 @@ import api, { handleApiResponse, handleApiError } from '@/lib/api'
 import { User, BackendUser } from '@/types'
 import { convertBackendUser, convertApiResponse } from '@/lib/typeConverters'
 import { ServiceErrorHandler, EnhancedToast, RetryHandler } from '@/lib/errorHandling'
+import { calculateLevel } from '@/lib/utils'
 
 export interface UpdateUserData {
   name?: string
@@ -16,6 +17,12 @@ export interface UserStats {
   level: number
   xp_points: number
   leaderboardScore: number
+}
+
+interface preferences {
+  id: string,
+  subjectName : string,
+  subjectDescription: string
 }
 
 class UserService {
@@ -86,7 +93,7 @@ class UserService {
     try {
       const user = await this.getUserById(userId)
       const newXP = (user.xp_points || 0) + xpGained
-      const newLevel = this.calculateLevel(newXP)
+      const newLevel = calculateLevel(newXP)
 
       const response = await api.patch(`/users/${userId}`, {
         xp_points: newXP,
@@ -98,10 +105,6 @@ class UserService {
     }
   }
 
-  // Calculate level from XP
-  calculateLevel(xp: number): number {
-    return Math.floor(Math.sqrt(xp / 100)) + 1
-  }
 
   // Get user statistics
   async getUserStats(userId: string): Promise<UserStats> {
@@ -286,6 +289,56 @@ class UserService {
     }
   }
 
+  // Gamification API methods
+  async getUserGamificationStats(userId: string): Promise<{
+    xp: number
+    level: number
+    streak: { current: number; longest: number }
+  }> {
+    try {
+      const response = await api.get(`/users/${userId}/stats`)
+      return handleApiResponse(response)
+    } catch (error: any) {
+      return handleApiError(error)
+    }
+  }
+
+  async getUserBadges(userId: string): Promise<any[]> {
+    try {
+      const response = await api.get(`/users/${userId}/badges`)
+      return handleApiResponse(response)
+    } catch (error: any) {
+      return handleApiError(error)
+    }
+  }
+
+  async getUserQuests(userId: string): Promise<any[]> {
+    try {
+      const response = await api.get(`/users/${userId}/quests`)
+      return handleApiResponse(response)
+    } catch (error: any) {
+      return handleApiError(error)
+    }
+  }
+
+  async completeQuest(userId: string, questId: string): Promise<any> {
+    try {
+      const response = await api.post(`/users/${userId}/quests/${questId}/complete`)
+      return handleApiResponse(response)
+    } catch (error: any) {
+      return handleApiError(error)
+    }
+  }
+
+  async unlockBadge(userId: string, badgeId: string): Promise<any> {
+    try {
+      const response = await api.post(`/users/${userId}/badges/${badgeId}/unlock`)
+      return handleApiResponse(response)
+    } catch (error: any) {
+      return handleApiError(error)
+    }
+  }
+
   // Enhanced methods for post-onboarding experience
   async validateUserPreferences(userId: string): Promise<{
     hasPreferences: boolean
@@ -407,6 +460,15 @@ class UserService {
         preferencesValidation,
         recommendationsTriggered: preferencesValidation.isComplete
       }
+    } catch (error: any) {
+      return handleApiError(error)
+    }
+  }
+
+  async getUserPreferences(): Promise<preferences[]> {
+    try {
+      const response = await api.get(`/users/preferences`)
+      return handleApiResponse(response)
     } catch (error: any) {
       return handleApiError(error)
     }

@@ -339,7 +339,7 @@ class QuizService {
       }
       
       throw lastError;
-    } catch (error) {
+    } catch (error : any) {
       console.error('Failed to generate assessment after retries:', error);
       
       // Provide user-friendly error messages
@@ -757,6 +757,7 @@ class QuizService {
   }): Promise<Quiz> {
     try {
       const response = await api.post('/quizzes/topic-practice', request)
+      console.log(response?.data);
       const backendQuiz = handleApiResponse(response)
 
       // Debug logging to see what the backend returns

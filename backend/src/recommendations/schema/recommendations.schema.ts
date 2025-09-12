@@ -55,6 +55,10 @@ export class Recommendation {
     @Prop({ type: [String], default: [] })
     tags: string[];
 
+    // New field for recommended existing quizzes based on this recommendation
+    @Prop({ type: [{ type: SchemaTypes.ObjectId, ref: "Quiz" }], default: [] })
+    recommendedQuizzes: Types.ObjectId[];
+
     // Recommendation metadata
     @Prop({ type: Object })
     metadata?: {

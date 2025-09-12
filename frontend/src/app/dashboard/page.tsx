@@ -50,6 +50,9 @@ export default function Dashboard() {
     isBadgesLoading
   } = useGamificationDashboard(authUser?.id && !isLoading ? authUser.id : undefined)
 
+  
+  console.log(`Debugging Point one`, quests, badges, unlockedBadges, activeQuests, summary);
+
   // Load streak data and update gamification store
   const setGamificationState = useGamificationStore(state => state.setGamificationState)
   const hasUpdatedRef = React.useRef(false)
@@ -87,11 +90,25 @@ export default function Dashboard() {
     generateInitialRecommendations
   } = usePostOnboardingExperience()
 
+  console.log(`Debugging Point Two` , personalizedContent , recommendations, personalizedGreeting , nextActions, dashboardContent , isPostOnboardingSetupComplete , validationStatus);
+
   // Real backend data hooks
   const dashboardAnalytics = useDashboardAnalytics(authUser?.id)
+  console.log(`Debugging Point Three` , dashboardAnalytics);
+
+
+
   const { data: popularSubjects, isLoading: subjectsLoading } = usePopularSubjects(5)
-  const { data: recommendedQuizzes, isLoading: quizzesLoading } = useRecommendedQuizzes(authUser?.id || '')
+
+  console.log(`Debugging Point Four` , popularSubjects);
+
+
+  const { data: recommendedQuizzes, isLoading: quizzesLoading } = useRecommendedQuizzes(authUser?.id || '');
+
+  console.log(`Debugging Point Five` , recommendedQuizzes);
   const { data: quizRecommendations, isLoading: quizRecLoading } = useQuizRecommendations(5, authUser?.id)
+
+  console.log(`Debugging Point Six` , quizRecommendations);
 
   const handleQuickAction = (action: string, xp: number, route?: string) => {
     if (xp > 0) {
@@ -141,7 +158,7 @@ export default function Dashboard() {
       <div className="min-h-screen bg-gray-900 flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-500 mx-auto mb-4"></div>
-          <p className="text-white font-secondary">Loading Dashboard...</p>
+          <p className="text-gray-900 dark:text-white font-secondary">Loading Dashboard...</p>
         </div>
       </div>
     )
@@ -171,10 +188,10 @@ export default function Dashboard() {
         >
           <div className="flex items-center justify-between mb-4">
             <div>
-              <h1 className="text-3xl font-bungee text-white mb-2">
+              <h1 className="text-responsive-3xl font-primary text-white mb-2">
                 {personalizedGreeting || `Welcome back, ${authUser?.name}! 🎮`}
               </h1>
-              <p className="text-gray-400">
+              <p className="text-responsive-base text-gray-400">
                 {dashboardContent?.focusAreas && dashboardContent.focusAreas.length > 0 ? 
                   `Focus on ${dashboardContent.focusAreas.slice(0, 2).join(' and ')} today!` :
                   'Ready to level up your learning today?'
@@ -183,7 +200,7 @@ export default function Dashboard() {
               {dashboardContent?.weakSubjects && dashboardContent.weakSubjects.length > 0 && (
                 <div className="mt-2 flex flex-wrap gap-2">
                   {dashboardContent.weakSubjects.slice(0, 3).map((subject: any, index: number) => (
-                    <span key={index} className="px-2 py-1 bg-orange-500/20 text-orange-300 rounded-full text-xs">
+                    <span key={index} className="px-2 py-1 bg-orange-500/20 text-orange-300 rounded-full text-responsive-xs">
                       Improve {subject.subject_name} ({Math.round(subject.score_percentage)}%)
                     </span>
                   ))}
@@ -194,7 +211,7 @@ export default function Dashboard() {
                   {dashboardContent.strongSubjects.slice(0, 2).map((subject: any, index: number) => (
                     <span
                       key={subject?.subject_id || subject?.subjectId || subject?.subject_name || `${subject?.name || 'subject'}-${index}`}
-                      className="px-2 py-1 bg-green-500/20 text-green-300 rounded-full text-xs"
+                      className="px-2 py-1 bg-green-500/20 text-green-300 rounded-full text-responsive-xs"
                     >
                       Strong in {subject.subject_name} ({Math.round(subject.score_percentage)}%)
                     </span>
@@ -301,7 +318,7 @@ export default function Dashboard() {
 
           {/* Standard Quick Actions */}
           <div>
-            <h2 className="text-xl font-secondary font-semibold text-white mb-4 flex items-center gap-2">
+            <h2 className="text-responsive-xl font-primary font-semibold text-white mb-4 flex items-center gap-2">
               <Zap className="w-5 h-5 text-yellow-400" />
               Quick Actions
             </h2>
@@ -312,14 +329,14 @@ export default function Dashboard() {
                     <Brain className="w-5 h-5 text-white" />
                   </div>
                   <div>
-                    <h3 className="text-sm font-semibold text-white">Quick Quiz</h3>
-                    <p className="text-gray-400 text-xs">Test your knowledge</p>
+                    <h3 className="text-responsive-sm font-semibold text-white">Quick Quiz</h3>
+                    <p className="text-gray-400 text-responsive-xs">Test your knowledge</p>
                   </div>
                 </div>
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2 text-yellow-400">
                     <Zap className="w-3 h-3" />
-                    <span className="text-xs font-medium">+50 XP</span>
+                    <span className="text-responsive-xs font-medium">+50 XP</span>
                   </div>
                   <QuickQuizButton size="sm" showStats={false} onStart={() => addXp(50)}>
                     Start
@@ -333,14 +350,14 @@ export default function Dashboard() {
                     <Calendar className="w-5 h-5 text-white" />
                   </div>
                   <div>
-                    <h3 className="text-sm font-semibold text-white">Daily Challenge</h3>
-                    <p className="text-gray-400 text-xs">Today's special quest</p>
+                    <h3 className="text-responsive-sm font-semibold text-white">Daily Challenge</h3>
+                    <p className="text-gray-400 text-responsive-xs">Today's special quest</p>
                   </div>
                 </div>
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2 text-yellow-400">
                     <Zap className="w-3 h-3" />
-                    <span className="text-xs font-medium">+200 XP</span>
+                    <span className="text-responsive-xs font-medium">+200 XP</span>
                   </div>
                   <ChallengeQuizButton size="sm" showStats={false} questionCount={7} onStart={() => addXp(200)}>
                     Start
@@ -357,13 +374,13 @@ export default function Dashboard() {
                     <BookOpen className="w-5 h-5 text-white" />
                   </div>
                   <div>
-                    <h3 className="text-sm font-semibold text-white">Study Session</h3>
-                    <p className="text-gray-400 text-xs">Focus time</p>
+                    <h3 className="text-responsive-sm font-semibold text-white">Study Session</h3>
+                    <p className="text-gray-400 text-responsive-xs">Focus time</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-2 text-yellow-400">
                   <Zap className="w-3 h-3" />
-                  <span className="text-xs font-medium">+75 XP</span>
+                  <span className="text-responsive-xs font-medium">+75 XP</span>
                 </div>
               </button>
 
@@ -376,13 +393,13 @@ export default function Dashboard() {
                     <TrendingUp className="w-5 h-5 text-white" />
                   </div>
                   <div>
-                    <h3 className="text-sm font-semibold text-white">Progress</h3>
-                    <p className="text-gray-400 text-xs">Track your growth</p>
+                    <h3 className="text-responsive-sm font-semibold text-white">Progress</h3>
+                    <p className="text-gray-400 text-responsive-xs">Track your growth</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-2 text-blue-400">
                   <Target className="w-3 h-3" />
-                  <span className="text-xs font-medium">View Stats</span>
+                  <span className="text-responsive-xs font-medium">View Stats</span>
                 </div>
               </button>
             </div>
@@ -450,11 +467,11 @@ export default function Dashboard() {
           <div className="flex items-center justify-between mb-6">
             <div className="flex items-center gap-3">
               <Target className="w-6 h-6 text-purple-400" />
-              <h2 className="text-2xl font-secondary font-semibold text-white">Active Quests</h2>
+              <h2 className="text-responsive-2xl font-primary font-semibold text-white">Active Quests</h2>
             </div>
             <button
               onClick={() => router.push('/quests')}
-              className="text-purple-400 hover:text-purple-300 transition-colors text-sm font-medium flex items-center gap-1"
+              className="text-purple-400 hover:text-purple-300 transition-colors text-responsive-sm font-medium flex items-center gap-1"
             >
               View All
               <Target className="w-4 h-4" />

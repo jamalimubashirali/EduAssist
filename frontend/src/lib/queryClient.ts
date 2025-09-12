@@ -67,12 +67,14 @@ const queryClientOptions: DefaultOptions = {
 
     // Retry delay - longer delay to prevent rapid retries
     retryDelay: 3000, // Fixed 3 second delay
-    
-    // Refetch on window focus for real-time data
+      // Refetch on window focus for real-time data
     refetchOnWindowFocus: false, // We'll enable this selectively
     
     // Refetch on reconnect
-    refetchOnReconnect: true,
+    refetchOnReconnect: false,
+    
+    // Refetch on mount
+    refetchOnMount: false,
     
     // Background refetch interval (disabled by default, enabled selectively)
     refetchInterval: false,

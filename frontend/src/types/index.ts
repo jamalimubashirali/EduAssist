@@ -105,6 +105,7 @@ export interface Badge {
   maxProgress?: number;
 }
 
+
 // Quest System
 export interface Quest {
   id: string;

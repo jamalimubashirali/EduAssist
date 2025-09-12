@@ -1,11 +1,9 @@
-import React from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { userService, UpdateUserData, UserStats } from '@/services/userService'
-import { User } from '@/types'
 import { useUserStore } from '@/stores/useUserStore'
 import { useGamificationStore } from '@/stores/useGamificationStore'
 import { toast } from 'sonner'
-import { CACHE_TIMES, createQueryKey } from '@/lib/queryClient'
+import { CACHE_TIMES } from '@/lib/queryClient'
 import { useCacheInvalidation } from '@/hooks/useCacheManager'
 import { useOptimisticUpdates } from '@/hooks/useOptimisticUpdates'
 
@@ -15,6 +13,7 @@ export const userKeys = {
   user: (id: string) => [...userKeys.all, id] as const,
   currentUser: () => [...userKeys.all, 'current'] as const,
   stats: (id: string) => [...userKeys.all, id, 'stats'] as const,
+  preferences: () => [...userKeys.all, 'preferences'] as const,
 }
 
 // Get current user - optimized for frequent access
@@ -48,22 +47,6 @@ export function useUser(id: string) {
   })
 }
 
-// Get user stats - frequent updates for dynamic data
-export function useUserStats(userId: string) {
-  return useQuery({
-    queryKey: userKeys.stats(userId),
-    queryFn: async () => {
-      const stats = await userService.getUserStats(userId);
-      console.log(`[UserData] Fetched user stats for userId (${userId}) from backend:`, stats);
-      return stats;
-    },
-    enabled: !!userId,
-    staleTime: CACHE_TIMES.USER_STATS,
-    refetchOnWindowFocus: false, // Disable aggressive refetching
-    retry: 1,
-    retryDelay: 2000,
-  })
-}
 
 // Update user mutation with optimistic updates
 export function useUpdateUser() {
@@ -158,3 +141,18 @@ export function useUpdateUserStreak() {
     },
   })
 }
+
+// Get User preferences
+export function useUserPreferences() {
+  return useQuery({
+    queryKey: userKeys.preferences(),
+    queryFn: async () => {
+      const preferences = await userService.getUserPreferences();
+      return preferences || [];
+    },
+    staleTime: CACHE_TIMES.USER_PROFILE,
+    gcTime: 1000 * 60 * 10,
+    retry: 1,
+  })
+}
+

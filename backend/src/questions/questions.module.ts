@@ -8,6 +8,6 @@ import { Question, QuestionSchema } from './schema/questions.schema';
   imports: [MongooseModule.forFeature([{ name: Question.name, schema: QuestionSchema }])],
   providers: [QuestionsService],
   controllers: [QuestionsController],
-  exports: [QuestionsService]
+  exports: [QuestionsService, MongooseModule]
 })
 export class QuestionsModule {}

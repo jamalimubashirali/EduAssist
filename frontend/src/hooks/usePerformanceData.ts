@@ -8,7 +8,6 @@ import {
 import { topicService } from '@/services/topicService'
 import { useUserStore } from '@/stores/useUserStore'
 import { toast } from 'sonner'
-import { SubjectMastery, LearningTrend, Recommendation } from '@/types'
 
 // Query keys
 export const performanceKeys = {

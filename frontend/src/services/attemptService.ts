@@ -35,6 +35,7 @@ function normalizeAttempt(raw: any): Attempt {
     correctAnswers,
     totalQuestions,
     performanceMetrics: raw.performanceMetrics,
+    comprehensiveAnalysis: raw.comprehensiveAnalysis,
   };
 }
 

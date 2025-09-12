@@ -4,9 +4,11 @@ export {
   userKeys,
   useCurrentUser,
   useUser,
-  useUserStats,
   // Mutations re-exported for convenience
   useUpdateUserXP,
   useUpdateUserStreak,
 } from './useUserData'
+
+// Re-export useUserStats from gamification data (more comprehensive)
+export { useUserStats } from './useGamificationData'
 

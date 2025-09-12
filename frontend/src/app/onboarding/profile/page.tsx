@@ -18,12 +18,6 @@ const AVATARS = [
   '👨‍💻', '👩‍🚀', '🧑‍⚕️', '👨‍🎨', '👩‍🏫', '🧑‍🎭'
 ]
 
-// const GRADE_LEVELS = [
-//   { value: 'elementary', label: 'Elementary School (K-5)' },
-//   { value: 'middle', label: 'Middle School (6-8)' },
-//   { value: 'high', label: 'High School (9-12)' },
-//   { value: 'college', label: 'College/University' },
-// ]
 
 export function ProfileStep() {
   const { handleNext, isLoading } = useOnboardingNavigation({

@@ -13,6 +13,8 @@ interface GamificationState {
   showLevelUpModal: boolean;
   showXPAnimation: boolean;
   xpAnimationAmount: number;
+  isLoading: boolean;
+  error: string | null;
 
   setGamificationState: (state: Partial<GamificationState>) => void;
   addXp: (amount: number) => void;
@@ -20,18 +22,27 @@ interface GamificationState {
   addBadge: (badge: Badge) => void;
   hideLevelUp: () => void;
   triggerXPAnimation: (amount: number) => void;
+  setLoading: (loading: boolean) => void;
+  setError: (error: string | null) => void;
+  resetState: () => void;
+}
+
+const initialState = {
+  xp: 0,
+  level: 1,
+  badges: [],
+  streak: { current: 0, longest: 0 },
+  showLevelUpModal: false,
+  showXPAnimation: false,
+  xpAnimationAmount: 0,
+  isLoading: false,
+  error: null,
 }
 
 export const useGamificationStore = create<GamificationState>()(
   devtools(
     (set, get) => ({
-      xp: 0,
-      level: 1,
-      badges: [],
-      streak: { current: 0, longest: 0 },
-      showLevelUpModal: false,
-      showXPAnimation: false,
-      xpAnimationAmount: 0,
+      ...initialState,
 
       setGamificationState: (state) => set(state),
 
@@ -47,6 +58,12 @@ export const useGamificationStore = create<GamificationState>()(
         set({ showXPAnimation: true, xpAnimationAmount: amount });
         setTimeout(() => set({ showXPAnimation: false }), 2000); // Hide after 2s
       },
+
+      setLoading: (loading) => set({ isLoading: loading }),
+
+      setError: (error) => set({ error }),
+
+      resetState: () => set(initialState),
     }),
     { name: 'gamification-store' }
   )
