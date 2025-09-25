@@ -78,4 +78,21 @@ export class PerformanceController {
   async getLearningTrends(@Param('userId') userId: string) {
     return this.performanceService.getLearningTrends(userId);
   }
+
+  @Get('user/:userId/goal-progress')
+  @HttpCode(HttpStatus.OK)
+  async getUserGoalProgress(@Param('userId') userId: string) {
+    return this.performanceService.getUserGoalProgress(userId);
+  }
+
+  @Get('my-goal-progress')
+  @HttpCode(HttpStatus.OK)
+  async getMyGoalProgress(@Req() req: Request) {
+    const userId = req.user?.['sub'];
+    if (!userId) {
+      throw new Error('User authentication required');
+    }
+
+    return this.performanceService.getUserGoalProgress(userId);
+  }
 }

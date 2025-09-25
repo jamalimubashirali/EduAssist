@@ -88,7 +88,27 @@ export class User {
         improvementRate: { type: Number, default: 0 },
         consistencyScore: { type: Number, default: 0 },
         engagementLevel: { type: String, default: 'LOW' }
-      }
+      },
+      // Goal progress tracking
+      goalProgress: {
+        targetScore: { type: Number, default: 75 },
+        currentAverageScore: { type: Number, default: 0 },
+        scoreGap: { type: Number, default: 0 },
+        progressPercentage: { type: Number, default: 0 },
+        topicsAtTarget: { type: Number, default: 0 },
+        totalTopics: { type: Number, default: 0 },
+        weeklyGoalProgress: {
+          target: { type: Number, default: 5 },
+          completed: { type: Number, default: 0 },
+          percentage: { type: Number, default: 0 },
+          isOnTrack: { type: Boolean, default: false }
+        }
+      },
+      // Focus area progress
+      focusAreaProgress: { type: Array, default: [] },
+      // Improving and declining topics
+      improvingTopics: { type: [String], default: [] },
+      decliningTopics: { type: [String], default: [] }
     },
     default: {
       status: OnboardingStatus.NOT_STARTED,

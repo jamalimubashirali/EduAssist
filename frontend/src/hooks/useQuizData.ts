@@ -5,15 +5,11 @@ import {
   GenerateQuizRequest, 
   CreateQuizData,
   PersonalizedQuizConfig,
-  OptimalQuizParameters,
-  AdaptiveSessionConfig,
-  QuizHistoryAnalytics
+  AdaptiveSessionConfig
 } from '@/services/quizService'
-import { Quiz } from '@/types'
 import { toast } from 'sonner'
-import { CACHE_TIMES, createQueryKey } from '@/lib/queryClient'
+import { CACHE_TIMES } from '@/lib/queryClient'
 import { useCacheInvalidation, usePrefetchStrategies } from '@/hooks/useCacheManager'
-import { useOptimisticQuizCompletion } from '@/hooks/useOptimisticUpdates'
 
 // Query keys with optimized structure
 export const quizKeys = {
@@ -48,19 +44,12 @@ export function useQuizzes(filters?: QuizFilters) {
 
 // Get quiz by ID - longer cache for individual quizzes
 export function useQuiz(id: string) {
-  console.log('🔍 [USE_QUIZ] Hook called with ID:', id)
 
   return useQuery({
     queryKey: quizKeys.detail(id),
     queryFn: async () => {
-      console.log('📡 [USE_QUIZ] Fetching quiz data for ID:', id)
       try {
         const result = await quizService.getQuizById(id)
-        console.log('✅ [USE_QUIZ] Quiz data received:', result)
-        console.log('📊 [USE_QUIZ] Questions in response:', result?.questions?.length || 0)
-        if (result?.questions) {
-          console.log('📝 [USE_QUIZ] Sample question:', result.questions[0])
-        }
         return result
       } catch (error) {
         console.error('❌ [USE_QUIZ] Error fetching quiz:', error)
@@ -252,8 +241,6 @@ export function useQuizStats() {
     isLoading: !popularQuizzes || !recentQuizzes,
   }
 }
-
-// PERSONALIZED QUIZ HOOKS - Connect to backend's sophisticated algorithms
 
 // Get optimal quiz parameters for intelligent recommendations
 export function useOptimalQuizParameters(topicId: string) {

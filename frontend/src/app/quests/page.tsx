@@ -12,11 +12,6 @@ import {
   Calendar, 
   Star, 
   Target,
-  Trophy,
-  Zap,
-  Gift,
-  Filter,
-  CheckCircle,
   Loader2
 } from 'lucide-react'
 import { Quest } from '@/types'
@@ -78,7 +73,7 @@ export default function QuestsPage() {
       {questList.length > 0 ? (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {questList.map((quest) => (
-            <QuestCard key={quest._id} quest={quest} />
+            <QuestCard key={quest.id} quest={quest} />
           ))}
         </div>
       ) : (

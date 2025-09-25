@@ -327,6 +327,85 @@ class PerformanceService {
       return handleApiError(error)
     }
   }
+
+  /**
+   * Get user's goal progress with enhanced weak area tracking
+   */
+  async getUserGoalProgress(userId?: string): Promise<{
+    targetScore: number
+    currentAverageScore: number
+    adjustedProgressScore: number
+    progressPercentage: number
+    scoreGap: number
+    topicsAtTarget: number
+    totalTopics: number
+    weakAreasCount: number
+    strongAreasCount: number
+    recentlyImprovedCount: number
+    newlyWeakCount: number
+    weeklyGoalProgress: {
+      target: number
+      completed: number
+      isOnTrack: boolean
+    }
+    focusAreaProgress: Array<{
+      area: string
+      currentScore: number
+      targetScore: number
+      isOnTrack: boolean
+      improvement: boolean
+      trend: 'improving' | 'declining' | 'stable'
+      topicsInArea: number
+      weakTopicsInArea: number
+    }>
+    weakAreas: string[]
+    strongAreas: string[]
+    improvingTopics: string[]
+    decliningTopics: string[]
+    recentlyImprovedAreas: string[]
+    newlyWeakAreas: string[]
+    improvementRate: number
+  }> {
+    try {
+      const endpoint = userId 
+        ? `/performance/user/${userId}/goal-progress`
+        : '/performance/my-goal-progress'
+      
+      const response = await api.get(endpoint)
+      return handleApiResponse(response)
+    } catch (error: any) {
+      return handleApiError(error)
+    }
+  }
+
+  /**
+   * Get enhanced recommendations based on goal progress and weak areas
+   */
+  async getEnhancedRecommendations(userId: string): Promise<{
+    recommendations: Array<{
+      title: string
+      reason: string
+      difficulty: 'EASY' | 'MEDIUM' | 'HARD'
+      priority: number
+      factors: string[]
+      goalContext: {
+        targetScore: number
+        currentProgress: number
+        scoreGap: number
+        isWeakArea: boolean
+        hasRecentlyImproved: boolean
+        weakAreasCount: number
+        strongAreasCount: number
+      }
+    }>
+  }> {
+    try {
+      const response = await api.get(`/recommendations/user/${userId}`)
+      return handleApiResponse(response)
+    } catch (error: any) {
+      return handleApiError(error)
+    }
+  }
 }
 
 export const performanceService = new PerformanceService()

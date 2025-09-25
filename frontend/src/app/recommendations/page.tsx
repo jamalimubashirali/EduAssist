@@ -21,11 +21,7 @@ import {
   Star,
   Clock,
   Zap,
-  CheckCircle,
-  X,
   Lightbulb,
-  Award,
-  Users,
   ArrowRight,
   Sparkles,
   Filter,
@@ -202,7 +198,7 @@ export default function RecommendationsPage() {
 
           {filteredRecommendations.map((recommendation, index) => (
             <motion.div
-              key={recommendation.id}
+              key={index}
               className="game-card-theme p-6"
               initial={{ opacity: 0, x: -20 }}
               animate={{ opacity: 1, x: 0 }}

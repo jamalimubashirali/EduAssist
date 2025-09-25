@@ -276,6 +276,36 @@ export function useLearningTrends(userId?: string) {
   })
 }
 
+// Get user goal progress with enhanced weak area tracking
+export function useUserGoalProgress(userId?: string) {
+  const { user } = useUserStore()
+  const targetUserId = userId || user?.id
+
+  return useQuery({
+    queryKey: [...performanceKeys.all, 'goal-progress', targetUserId],
+    queryFn: () => performanceService.getUserGoalProgress(targetUserId),
+    enabled: !!targetUserId,
+    staleTime: 1000 * 60 * 5, // 5 minutes - refresh more frequently for goal tracking
+    refetchOnWindowFocus: false,
+    retry: 1,
+  })
+}
+
+// Get enhanced recommendations based on goal progress
+export function useEnhancedRecommendations(userId?: string) {
+  const { user } = useUserStore()
+  const targetUserId = userId || user?.id
+
+  return useQuery({
+    queryKey: [...performanceKeys.all, 'enhanced-recommendations', targetUserId],
+    queryFn: () => performanceService.getEnhancedRecommendations(targetUserId!),
+    enabled: !!targetUserId,
+    staleTime: 1000 * 60 * 15, // 15 minutes
+    refetchOnWindowFocus: false,
+    retry: 1,
+  })
+}
+
 // Enhanced dashboard analytics with advanced backend features
 export function useAdvancedDashboardAnalytics(userId?: string) {
   const { user } = useUserStore()

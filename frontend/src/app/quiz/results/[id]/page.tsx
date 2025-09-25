@@ -8,7 +8,6 @@ import { useXP } from "@/hooks/useXP";
 import { useGamificationStore } from "@/stores/useGamificationStore";
 import { useNotificationStore } from "@/stores/useNotificationStore";
 import GameLayout from "@/app/components/layout/GameLayout";
-import QuizAssessment from "@/components/quiz/QuizAssessment";
 import { useUpdateUserXP, useUpdateUserStreak } from "@/hooks/useUserData";
 import { recommendationService } from "@/services/recommendationService";
 import { performanceService } from "@/services/performanceService";
@@ -27,7 +26,6 @@ import {
   XCircle,
   Brain,
   Sparkles,
-  Lightbulb,
   BookOpen,
   AlertCircle,
 } from "lucide-react";
@@ -36,6 +34,8 @@ import { useQuiz } from "@/hooks/useQuizData";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
+import { GoalProgressSection } from "@/app/components/quiz/GoalProgressSection";
+import { EnhancedRecommendationsSection } from "@/app/components/quiz/EnhancedRecommendations";
 
 export default function QuizResultsPage() {
   const router = useRouter();
@@ -1478,6 +1478,20 @@ export default function QuizResultsPage() {
                 </CardContent>
               </Card>
             </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Enhanced Goal Progress & Weak Area Improvements */}
+        <AnimatePresence>
+          {currentStep >= 3 && (
+            <GoalProgressSection userId={user?.id} />
+          )}
+        </AnimatePresence>
+
+        {/* Enhanced Recommendations */}
+        <AnimatePresence>
+          {currentStep >= 3 && (
+            <EnhancedRecommendationsSection userId={user?.id} />
           )}
         </AnimatePresence>
 

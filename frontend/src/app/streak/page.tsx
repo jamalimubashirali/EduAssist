@@ -11,14 +11,7 @@ import { useRouter } from 'next/navigation'
 import { 
   Flame, 
   Calendar, 
-  Target, 
-  TrendingUp,
-  Award,
-  Clock,
-  Zap,
-  Star,
   Trophy,
-  Heart,
   Shield,
   ChevronLeft,
   ChevronRight
@@ -36,20 +29,28 @@ export default function StreakAnalyzerPage() {
     }
   }, [user, router])
 
-  // Get real gamification data
-  const { 
-    summary, 
-    streak, 
-    isLoading 
-  } = useGamificationDashboard(user?.id)
+  // Get real gamification data (streak, summary, etc.)
+  const { summary, streak, isLoading } = useGamificationDashboard(user?.id)
 
   // Pull learning trends for last 60 days to paint heatmap
   const { data: learningTrends, isLoading: isTrendsLoading } = useQuery({
     queryKey: ['learning-trends', user?.id],
     queryFn: async () => {
-      if (!user?.id) return []
+      if (!user?.id) return {
+        dailyTrends: [],
+        weeklyTrends: [],
+        totalDaysActive: 0,
+        averageDailyQuizzes: 0,
+        overallTrend: ''
+      }
       const response = await api.get(`/performance/user/${user.id}/learning-trends?days=60`)
-      return response.data as Array<{ date: string; quizzesCompleted: number; xpEarned: number }>
+      return response.data as {
+        dailyTrends?: Array<{ date: string; quizCount: number; averageScore: number; subjectsStudied?: number }>,
+        weeklyTrends?: Array<any>,
+        totalDaysActive?: number,
+        averageDailyQuizzes?: number,
+        overallTrend?: string
+      }
     },
     enabled: !!user?.id
   })
@@ -68,12 +69,13 @@ export default function StreakAnalyzerPage() {
   const currentStreakData = {
     currentStreak: streak?.current || streakData?.currentStreak || 0,
     longestStreak: streak?.longest || streakData?.longestStreak || 0,
-    totalActiveDays: (learningTrends || []).filter((d) => d.quizzesCompleted > 0).length,
+    // Prefer explicit totalDaysActive if backend provides it, otherwise derive from dailyTrends
+    totalActiveDays: learningTrends?.totalDaysActive ?? ((learningTrends as any)?.dailyTrends ? (learningTrends as any).dailyTrends.filter((d: any) => (d.quizCount || 0) > 0).length : 0) ?? 0,
     streakFreeze: 2, // placeholder, could be user preference later
     lastActivity: streak?.lastActivityDate || new Date().toISOString(),
   }
 
-  // Build calendar days using learningTrends
+  // Build calendar days using learningTrends.dailyTrends (new response shape)
   const buildCalendarDays = () => {
     const daysInMonth = new Date(selectedYear, selectedMonth + 1, 0).getDate()
     const firstDayOfMonth = new Date(selectedYear, selectedMonth, 1).getDay()
@@ -82,14 +84,19 @@ export default function StreakAnalyzerPage() {
     // Offset
     for (let i = 0; i < firstDayOfMonth; i++) days.push(null)
 
+    const daily = Array.isArray((learningTrends as any)?.dailyTrends) ? (learningTrends as any).dailyTrends : []
+
     for (let day = 1; day <= daysInMonth; day++) {
       const date = new Date(selectedYear, selectedMonth, day)
       const dateString = date.toISOString().split('T')[0]
-      const trend = (learningTrends || []).find((t) => t.date.startsWith(dateString))
-      const xp = trend?.xpEarned || 0
-      const quizzes = trend?.quizzesCompleted || 0
+      const trend = daily.find((t: any) => String(t.date).startsWith(dateString))
+      // Use quizCount and averageScore from the new payload
+      const quizzes = trend?.quizCount ?? trend?.quizzesCompleted ?? 0
+      const avgScore = trend?.averageScore ?? trend?.averageScore ?? 0
+      // Map quizCount to a simple activity 'xp' scale so existing color thresholds keep working
+      const xp = quizzes * 100
       const active = quizzes > 0
-      days.push({ day, date: dateString, active, xp, quizzes })
+      days.push({ day, date: dateString, active, xp, quizzes, avgScore })
     }
     return days
   }

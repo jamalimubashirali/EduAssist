@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useEffect } from 'react'
+import React from 'react'
 import { useRouter } from 'next/navigation'
 import { motion } from 'framer-motion'
 import { useRequireAuth } from '@/hooks/useAuthProtection'
@@ -24,7 +24,7 @@ import { QuickQuizButton, ChallengeQuizButton } from '@/app/components/quiz/Star
 import { useQuizRecommendations } from '@/hooks/useRecommendationData'
 import { usePostOnboardingExperience } from '@/hooks/usePostOnboardingExperience'
 import { Lightbulb } from 'lucide-react'
-import { useDashboardAnalytics } from '@/hooks/usePerformanceData'
+import { useDashboardAnalytics, useUserGoalProgress } from '@/hooks/usePerformanceData'
 import { usePopularSubjects } from '@/hooks/useSubjectData'
 import { useRecommendedQuizzes } from '@/hooks/useQuizData';
 import { quizService } from '@/services/quizService'
@@ -41,7 +41,6 @@ export default function Dashboard() {
 
   // Use real gamification data - only when user is authenticated and loaded
   const {
-    quests,
     badges,
     unlockedBadges,
     activeQuests,
@@ -49,9 +48,6 @@ export default function Dashboard() {
     isQuestsLoading,
     isBadgesLoading
   } = useGamificationDashboard(authUser?.id && !isLoading ? authUser.id : undefined)
-
-  
-  console.log(`Debugging Point one`, quests, badges, unlockedBadges, activeQuests, summary);
 
   // Load streak data and update gamification store
   const setGamificationState = useGamificationStore(state => state.setGamificationState)
@@ -90,25 +86,19 @@ export default function Dashboard() {
     generateInitialRecommendations
   } = usePostOnboardingExperience()
 
-  console.log(`Debugging Point Two` , personalizedContent , recommendations, personalizedGreeting , nextActions, dashboardContent , isPostOnboardingSetupComplete , validationStatus);
-
   // Real backend data hooks
   const dashboardAnalytics = useDashboardAnalytics(authUser?.id)
-  console.log(`Debugging Point Three` , dashboardAnalytics);
 
 
 
   const { data: popularSubjects, isLoading: subjectsLoading } = usePopularSubjects(5)
 
-  console.log(`Debugging Point Four` , popularSubjects);
 
 
   const { data: recommendedQuizzes, isLoading: quizzesLoading } = useRecommendedQuizzes(authUser?.id || '');
 
-  console.log(`Debugging Point Five` , recommendedQuizzes);
   const { data: quizRecommendations, isLoading: quizRecLoading } = useQuizRecommendations(5, authUser?.id)
 
-  console.log(`Debugging Point Six` , quizRecommendations);
 
   const handleQuickAction = (action: string, xp: number, route?: string) => {
     if (xp > 0) {
@@ -315,6 +305,9 @@ export default function Dashboard() {
               </div>
             </div>
           )} */}
+
+          {/* Enhanced Goal Progress Widget */}
+          <GoalProgressWidget userId={authUser?.id} />
 
           {/* Standard Quick Actions */}
           <div>
@@ -669,4 +662,115 @@ export default function Dashboard() {
       </div>
     </GameLayout>
   )
+}
+
+// Enhanced Goal Progress Widget Component
+function GoalProgressWidget({ userId }: { userId?: string }) {
+  const { data: goalProgress, isLoading } = useUserGoalProgress(userId);
+
+  if (isLoading || !goalProgress) {
+    return null;
+  }
+
+  return (
+    <div className="mb-6">
+      <h2 className="text-responsive-xl font-primary font-semibold text-white mb-4 flex items-center gap-2">
+        <Target className="w-5 h-5 text-green-400" />
+        Goal Progress
+      </h2>
+      
+      <div className="game-card p-6">
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <h3 className="text-lg font-semibold text-white mb-1">
+              Target Score: {goalProgress.targetScore}%
+            </h3>
+            <p className="text-sm text-gray-400">
+              Current Average: {goalProgress.currentAverageScore}%
+            </p>
+            {goalProgress.adjustedProgressScore !== goalProgress.currentAverageScore && (
+              <p className="text-xs text-blue-400">
+                Weighted Score: {goalProgress.adjustedProgressScore}%
+              </p>
+            )}
+          </div>
+          <div className="text-right">
+            <div className="text-3xl font-bold text-green-400">
+              {goalProgress.progressPercentage}%
+            </div>
+            <div className="text-xs text-gray-400">Complete</div>
+          </div>
+        </div>
+        
+        <div className="w-full bg-gray-700 rounded-full h-3 mb-4">
+          <div 
+            className="bg-gradient-to-r from-green-500 to-blue-500 h-3 rounded-full transition-all duration-500"
+            style={{ width: `${Math.min(goalProgress.progressPercentage, 100)}%` }}
+          />
+        </div>
+
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+          <div className="text-center">
+            <div className="text-lg font-bold text-blue-400">
+              {goalProgress.topicsAtTarget}
+            </div>
+            <div className="text-gray-400">At Target</div>
+          </div>
+          <div className="text-center">
+            <div className="text-lg font-bold text-purple-400">
+              {goalProgress.totalTopics}
+            </div>
+            <div className="text-gray-400">Total Topics</div>
+          </div>
+          <div className="text-center">
+            <div className="text-lg font-bold text-orange-400">
+              {goalProgress.scoreGap}%
+            </div>
+            <div className="text-gray-400">Gap to Close</div>
+          </div>
+          <div className="text-center">
+            <div className={`text-lg font-bold ${
+              goalProgress.weeklyGoalProgress?.isOnTrack ? 'text-green-400' : 'text-red-400'
+            }`}>
+              {goalProgress.weeklyGoalProgress?.completed || 0}/{goalProgress.weeklyGoalProgress?.target || 5}
+            </div>
+            <div className="text-gray-400">Weekly Goal</div>
+          </div>
+        </div>
+
+        {/* Quick insights */}
+        {(goalProgress.improvingTopics?.length > 0 || goalProgress.weakAreas?.length > 0 || 
+          goalProgress.recentlyImprovedCount > 0 || goalProgress.newlyWeakCount > 0) && (
+          <div className="mt-4 pt-4 border-t border-gray-600">
+            <div className="flex flex-wrap items-center gap-4 text-sm">
+              {goalProgress.recentlyImprovedCount > 0 && (
+                <div className="flex items-center space-x-2 text-green-400">
+                  <TrendingUp className="w-4 h-4" />
+                  <span>{goalProgress.recentlyImprovedCount} areas improved!</span>
+                </div>
+              )}
+              {goalProgress.improvingTopics?.length > 0 && (
+                <div className="flex items-center space-x-2 text-blue-400">
+                  <TrendingUp className="w-4 h-4" />
+                  <span>{goalProgress.improvingTopics.length} topics improving</span>
+                </div>
+              )}
+              {goalProgress.weakAreas?.length > 0 && (
+                <div className="flex items-center space-x-2 text-orange-400">
+                  <Target className="w-4 h-4" />
+                  <span>{goalProgress.weakAreas.length} areas need focus</span>
+                </div>
+              )}
+              {goalProgress.newlyWeakCount > 0 && (
+                <div className="flex items-center space-x-2 text-red-400">
+                  <Target className="w-4 h-4" />
+                  <span>{goalProgress.newlyWeakCount} new weak areas</span>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
 }

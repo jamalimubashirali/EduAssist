@@ -5,7 +5,6 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { useUserStore } from '@/stores/useUserStore'
 import { useGamificationDashboard } from '@/hooks/useGamificationData'
 import GameLayout from '@/app/components/layout/GameLayout'
-import BadgeCard from '@/app/components/gamification/BadgeCard'
 import { 
   Award, 
   Trophy, 
@@ -14,16 +13,9 @@ import {
   Zap,
   BookOpen,
   Users,
-  Calendar,
-  Brain,
-  Heart,
-  Shield,
-  Crown,
   Sparkles,
-  Filter,
   Lock,
   CheckCircle,
-  Clock,
   Loader2
 } from 'lucide-react'
 
@@ -45,6 +37,8 @@ export default function BadgesPage() {
     const rarityMatch = selectedRarity === 'all' || badge.rarity === selectedRarity
     return categoryMatch && rarityMatch
   })
+
+  console.log({ badges, unlockedBadges, lockedBadges, summary , filteredBadges });
 
   const categories = [
     { id: 'all', label: 'All Badges', icon: Award },

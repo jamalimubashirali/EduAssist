@@ -5,13 +5,15 @@ import { Recommendation } from './schema/recommendations.schema';
 import { CreateRecommendationDto } from './dto/create-recommendation.dto';
 import { UpdateRecommendationDto } from './dto/update-recommendation.dto';
 import { RecommendationStatus, DifficultyLevel } from 'common/enums';
-import { Quiz } from '../quizzes/schema/quizzes.schema'; // Import Quiz schema
+import { Quiz } from '../quizzes/schema/quizzes.schema';
+import { User } from '../users/schema/user.schema';
 
 @Injectable()
 export class RecommendationsService {
   constructor(
     @InjectModel(Recommendation.name) private recommendationModel: Model<Recommendation>,
-    @InjectModel(Quiz.name) private quizModel: Model<Quiz>, // Inject Quiz model
+    @InjectModel(Quiz.name) private quizModel: Model<Quiz>,
+    @InjectModel(User.name) private userModel: Model<User>,
   ) {}
 
   async create(createRecommendationDto: CreateRecommendationDto): Promise<Recommendation | null> {
@@ -574,16 +576,36 @@ export class RecommendationsService {
   // Get user's onboarding data for personalized recommendations
   private async getUserOnboardingData(userId: string): Promise<any> {
     try {
-      // This would typically fetch from the user model
-      // For now, we'll return a mock structure
+      // Fetch actual user data with enhanced goal progress
+      const user = await this.userModel.findById(userId).select('onboarding').exec();
+      
+      if (!user?.onboarding) {
+        return {
+          learningStyle: 'BALANCED',
+          proficiencyLevel: 'INTERMEDIATE',
+          weakAreas: [],
+          strongAreas: [],
+          preferredDifficulty: 'MEDIUM',
+          studyTimePerDay: 30,
+          targetScore: 75
+        };
+      }
+
+      const onboarding = user.onboarding;
+      
       return {
-        learningStyle: 'BALANCED',
-        proficiencyLevel: 'INTERMEDIATE',
-        weakAreas: [],
-        strongAreas: [],
-        preferredDifficulty: 'MEDIUM',
-        studyTimePerDay: 30,
-        targetScore: 75
+        learningStyle: onboarding.learningPreferences?.learningStyle || 'BALANCED',
+        proficiencyLevel: onboarding.learningPreferences?.proficiencyLevel || 'INTERMEDIATE',
+        weakAreas: onboarding.assessmentData?.weakAreas || [],
+        strongAreas: onboarding.assessmentData?.strongAreas || [],
+        recentlyImprovedAreas: onboarding.assessmentData?.recentlyImprovedAreas || [],
+        newlyWeakAreas: onboarding.assessmentData?.newlyWeakAreas || [],
+        preferredDifficulty: onboarding.learningPreferences?.preferredDifficulty || 'MEDIUM',
+        studyTimePerDay: onboarding.learningPreferences?.studyTimePerDay || 30,
+        targetScore: onboarding.learningPreferences?.targetScore || 75,
+        focusAreas: onboarding.learningPreferences?.focusAreas || [],
+        goalProgress: onboarding.goalProgress || {},
+        focusAreaProgress: onboarding.focusAreaProgress || []
       };
     } catch (error) {
       console.error('Error fetching user onboarding data:', error);
@@ -599,6 +621,13 @@ export class RecommendationsService {
   ): any {
     const learningStyle = onboardingData?.learningStyle || 'BALANCED';
     const proficiencyLevel = onboardingData?.proficiencyLevel || 'INTERMEDIATE';
+    const targetScore = onboardingData?.targetScore || 75;
+    const weakAreas = onboardingData?.weakAreas || [];
+    const strongAreas = onboardingData?.strongAreas || [];
+    const recentlyImprovedAreas = onboardingData?.recentlyImprovedAreas || [];
+    const newlyWeakAreas = onboardingData?.newlyWeakAreas || [];
+    const goalProgress = onboardingData?.goalProgress || {};
+    const focusAreaProgress = onboardingData?.focusAreaProgress || [];
     
     let title = '';
     let reason = '';
@@ -606,34 +635,84 @@ export class RecommendationsService {
     let priority = 50;
     const factors: string[] = [];
 
-    // Base recommendation on score
-    if (attemptScore < 40) {
-      title = 'Foundation Building Required';
-      reason = 'Your recent performance indicates a need to strengthen fundamental concepts. ';
+    // Enhanced recommendation based on goal progress and weak areas
+    const isInWeakArea = weakAreas.length > 0;
+    const hasRecentlyImproved = recentlyImprovedAreas.length > 0;
+    const hasNewWeakAreas = newlyWeakAreas.length > 0;
+    const progressPercentage = goalProgress?.progressPercentage || 0;
+    const scoreGap = goalProgress?.scoreGap || 0;
+
+    // Priority-based recommendation logic using goal progress
+    if (hasNewWeakAreas && attemptScore < targetScore) {
+      title = 'Urgent: New Weak Area Detected';
+      reason = `This topic has recently become a weak area. Focus on strengthening it to maintain your ${targetScore}% goal progress. `;
       difficulty = DifficultyLevel.EASY;
-      priority = 80;
-      factors.push('low_performance');
-    } else if (attemptScore < 60) {
-      title = 'Skill Development Focus';
-      reason = 'You understand the basics but need more practice to build confidence. ';
+      priority = 90;
+      factors.push('new_weak_area', 'goal_based');
+    } else if (isInWeakArea && attemptScore < targetScore) {
+      title = 'Weak Area Focus Required';
+      reason = `This is one of your ${weakAreas.length} weak areas. Improving here will significantly boost your overall goal progress (currently ${progressPercentage}%). `;
+      difficulty = DifficultyLevel.EASY;
+      priority = 85;
+      factors.push('weak_area_focus', 'goal_based');
+    } else if (hasRecentlyImproved && attemptScore >= targetScore) {
+      title = 'Excellent Progress! Maintain Momentum';
+      reason = `Great job improving in this area! You've moved this topic out of your weak areas. Continue practicing to solidify your gains. `;
       difficulty = DifficultyLevel.MEDIUM;
-      priority = 70;
-      factors.push('developing_skills');
-    } else if (attemptScore < 80) {
-      title = 'Steady Progress Path';
-      reason = 'Good performance! Continue building on your current understanding. ';
-      difficulty = DifficultyLevel.MEDIUM;
-      priority = 50;
-      factors.push('steady_progress');
-    } else {
-      title = 'Advanced Challenge Ready';
-      reason = 'Excellent work! You\'re ready for more challenging material. ';
+      priority = 40;
+      factors.push('recently_improved', 'goal_achieved');
+    } else if (attemptScore >= targetScore && strongAreas.length > 0) {
+      title = 'Strong Area - Ready for Challenge';
+      reason = `This is one of your strong areas. Challenge yourself with harder questions to excel beyond your ${targetScore}% target. `;
       difficulty = DifficultyLevel.HARD;
       priority = 30;
-      factors.push('high_performance');
+      factors.push('strong_area', 'challenge_ready');
+    } else if (scoreGap > 15) {
+      title = 'Goal Gap - Intensive Focus Needed';
+      reason = `You're ${scoreGap}% away from your target score. This topic needs intensive practice to close the gap. `;
+      difficulty = DifficultyLevel.EASY;
+      priority = 80;
+      factors.push('large_goal_gap', 'intensive_focus');
+    } else {
+      // Fallback to original logic for edge cases
+      if (attemptScore < targetScore - 10) {
+        title = 'Below Target - Foundation Building';
+        reason = `Your score is below your ${targetScore}% target. Let's build a strong foundation in this topic. `;
+        difficulty = DifficultyLevel.EASY;
+        priority = 75;
+        factors.push('below_target');
+      } else if (attemptScore < targetScore) {
+        title = 'Near Target - Skill Development';
+        reason = `You're close to your ${targetScore}% target! A bit more practice will get you there. `;
+        difficulty = DifficultyLevel.MEDIUM;
+        priority = 60;
+        factors.push('near_target');
+      } else {
+        title = 'Target Achieved - Maintain Excellence';
+        reason = `Excellent! You've reached your ${targetScore}% target. Keep practicing to maintain this level. `;
+        difficulty = DifficultyLevel.MEDIUM;
+        priority = 40;
+        factors.push('target_achieved');
+      }
     }
 
-    // Adjust based on learning style
+    // Focus area considerations
+    const currentTopicInFocusArea = focusAreaProgress.find(fp => 
+      fp.area && reason.toLowerCase().includes(fp.area.toLowerCase())
+    );
+    
+    if (currentTopicInFocusArea) {
+      if (!currentTopicInFocusArea.isOnTrack) {
+        reason += `This topic is part of your "${currentTopicInFocusArea.area}" focus area, which needs attention. `;
+        priority += 15;
+        factors.push('focus_area_behind');
+      } else if (currentTopicInFocusArea.improvement) {
+        reason += `Great progress in your "${currentTopicInFocusArea.area}" focus area! `;
+        factors.push('focus_area_improving');
+      }
+    }
+
+    // Adjust based on learning style with goal context
     if (learningStyle === 'ANALYTICAL') {
       reason += 'Given your analytical learning style, focus on understanding the underlying principles and step-by-step problem solving. ';
       factors.push('analytical_learner');
@@ -663,15 +742,31 @@ export class RecommendationsService {
       factors.push('proficiency_enhanced');
     }
 
-    // Performance trend consideration
+    // Enhanced performance trend consideration with goal context
     const trend = attemptScore - averageScore;
     if (trend > 10) {
       reason += 'Your improving trend shows you\'re ready for the next level! ';
       factors.push('improving_trend');
+      if (isInWeakArea) {
+        reason += 'This improvement in a weak area is especially valuable for your goal progress. ';
+        factors.push('weak_area_improving');
+      }
     } else if (trend < -10) {
       reason += 'Let\'s focus on consolidating your knowledge before advancing. ';
       factors.push('declining_trend');
       priority += 15;
+      if (strongAreas.includes('current_topic')) {
+        reason += 'This decline in a previously strong area needs immediate attention. ';
+        priority += 10;
+        factors.push('strong_area_declining');
+      }
+    }
+
+    // Add goal progress context to reason
+    if (progressPercentage < 50) {
+      reason += `Focus on weak areas to accelerate your goal progress (currently ${progressPercentage}%). `;
+    } else if (progressPercentage >= 80) {
+      reason += `You're doing great with ${progressPercentage}% goal progress! `;
     }
 
     return {
@@ -679,7 +774,16 @@ export class RecommendationsService {
       reason: reason.trim(),
       difficulty,
       priority: Math.min(priority, 100),
-      factors
+      factors,
+      goalContext: {
+        targetScore,
+        currentProgress: progressPercentage,
+        scoreGap,
+        isWeakArea: isInWeakArea,
+        hasRecentlyImproved: hasRecentlyImproved,
+        weakAreasCount: weakAreas.length,
+        strongAreasCount: strongAreas.length
+      }
     };
   }
 }

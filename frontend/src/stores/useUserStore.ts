@@ -139,7 +139,6 @@ export const useUserStore = create<UserState>()(
           isAuthenticated: state.isAuthenticated
         }),        // Handle hydration properly
         onRehydrateStorage: () => (state) => {
-          console.log('🔄 Hydration completed');
           if (state) {
             // Only set loading to true if we have persisted state but need to verify it
             if (state.user && !state.isInitialized) {
@@ -147,7 +146,6 @@ export const useUserStore = create<UserState>()(
             }
           } else {
             // No persisted state, ensure we start fresh
-            console.log('🔄 No persisted state, starting fresh');
           }
         },
       }
