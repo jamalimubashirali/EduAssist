@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { UserPerformance } from './schema/performance.schema';
@@ -849,7 +849,7 @@ export class PerformanceService {
       const userObjectId = new Types.ObjectId(userId);
 
       // Use aggregation to get user with goal progress - flattened structure
-      const result = await this.userModel.aggregate([
+      const aggregationResult = await this.userModel.aggregate([
         { $match: { _id: userObjectId } },
         {
           $project: {
@@ -867,7 +867,7 @@ export class PerformanceService {
             newlyWeakCount: { $ifNull: ['$onboarding.goalProgress.newlyWeakCount', 0] },
             weeklyGoalProgress: { $ifNull: ['$onboarding.goalProgress.weeklyGoalProgress', { target: 5, completed: 0, isOnTrack: false }] },
             improvementRate: { $ifNull: ['$onboarding.goalProgress.improvementRate', '$onboarding.progressMetrics.improvementRate', 0] },
-            
+
             // Arrays
             focusAreaProgress: { $ifNull: ['$onboarding.focusAreaProgress', []] },
             weakAreas: { $ifNull: ['$onboarding.assessmentData.weakAreas', []] },
@@ -876,7 +876,7 @@ export class PerformanceService {
             decliningTopics: { $ifNull: ['$onboarding.decliningTopics', []] },
             recentlyImprovedAreas: { $ifNull: ['$onboarding.assessmentData.recentlyImprovedAreas', []] },
             newlyWeakAreas: { $ifNull: ['$onboarding.assessmentData.newlyWeakAreas', []] },
-            
+
             // Additional fields
             focusAreas: { $ifNull: ['$onboarding.learningPreferences.focusAreas', []] },
             weeklyGoal: { $ifNull: ['$onboarding.learningPreferences.weeklyGoal', 5] }
@@ -884,10 +884,19 @@ export class PerformanceService {
         }
       ]);
 
-      const goalProgressData = result[0] || {};
-      
+      const goalProgressData = aggregationResult[0] || {};
+
+      // Debug logging
+      console.log(`[getUserGoalProgress] User ${userId} goal progress data:`, {
+        targetScore: goalProgressData.targetScore,
+        currentAverageScore: goalProgressData.currentAverageScore,
+        progressPercentage: goalProgressData.progressPercentage,
+        totalTopics: goalProgressData.totalTopics,
+        weakAreasCount: goalProgressData.weakAreasCount
+      });
+
       // Ensure all required fields exist with defaults
-      return {
+      const finalResult = {
         targetScore: goalProgressData.targetScore || 75,
         currentAverageScore: goalProgressData.currentAverageScore || 0,
         adjustedProgressScore: goalProgressData.adjustedProgressScore || goalProgressData.currentAverageScore || 0,
@@ -909,6 +918,9 @@ export class PerformanceService {
         newlyWeakAreas: goalProgressData.newlyWeakAreas || [],
         improvementRate: goalProgressData.improvementRate || 0
       };
+
+      console.log(`[getUserGoalProgress] Returning result for user ${userId}:`, finalResult);
+      return finalResult;
     } catch (error) {
       console.error('Error getting user goal progress:', error);
       return {};

@@ -3,7 +3,6 @@ import { QuizzesService, PersonalizedQuizConfig, QuizGenerationResult } from './
 import { TopicsService } from '../topics/topics.service';
 import { Request } from 'express';
 import { Public } from 'common/decorators/public_endpoint.decorators';
-import { Types } from 'mongoose';
 
 @Controller('quizzes')
 export class QuizzesController {
@@ -486,7 +485,7 @@ export class QuizzesController {
   }
 
   /**
-   * Get recommended quizzes for a user
+   * Get intelligent recommended quizzes for a user based on performance and weak areas
    */
   @Get('recommended/:userId')
   @HttpCode(HttpStatus.OK)
@@ -500,28 +499,143 @@ export class QuizzesController {
       }
 
       const limitNumber = parseInt(limit, 10) || 10;
+      console.log(`🎯 [QUIZ-REC] Getting intelligent quiz recommendations for user: ${userId}, limit: ${limitNumber}`);
 
-      // For now, return a mix of popular and recent quizzes as recommendations
-      // In a real implementation, this would use user preferences, performance history, etc.
+      // Step 1: Get user's smart recommendations from the recommendation service
+      const smartRecommendations = await this.quizzesService.getSmartQuizRecommendationsForUser(userId, limitNumber);
+
+      if (smartRecommendations && smartRecommendations.length > 0) {
+        console.log(`✅ [QUIZ-REC] Found ${smartRecommendations.length} smart recommendations`);
+        return this.formatQuizzesForFrontend(smartRecommendations);
+      }
+
+      console.log(`⚠️ [QUIZ-REC] No smart recommendations found, falling back to performance-based selection`);
+
+      // Step 2: Fallback - Get user performance data and generate recommendations
+      const userPerformanceData = await this.quizzesService.getUserPerformanceBasedRecommendations(userId, limitNumber);
+
+      if (userPerformanceData && userPerformanceData.length > 0) {
+        console.log(`✅ [QUIZ-REC] Found ${userPerformanceData.length} performance-based recommendations`);
+        return this.formatQuizzesForFrontend(userPerformanceData);
+      }
+
+      console.log(`⚠️ [QUIZ-REC] No performance data available, using intelligent fallback`);
+
+      // Step 3: Final fallback - Get diverse quizzes across subjects with preference for variety
       const allQuizzes = await this.quizzesService.findAll();
 
       if (!allQuizzes || allQuizzes.length === 0) {
+        console.log(`❌ [QUIZ-REC] No quizzes available in database`);
         return [];
       }
 
-      // Simple recommendation algorithm: return recent quizzes
-      // TODO: Implement proper recommendation logic based on user preferences and performance
-      const sortedQuizzes = allQuizzes.sort((a, b) => {
-        const dateA = (a as any).createdAt || new Date(0);
-        const dateB = (b as any).createdAt || new Date(0);
-        return new Date(dateB).getTime() - new Date(dateA).getTime();
-      });
+      // Intelligent fallback: prioritize variety across subjects and difficulties
+      const diverseQuizzes = this.selectDiverseQuizzes(allQuizzes, limitNumber);
+      console.log(`✅ [QUIZ-REC] Selected ${diverseQuizzes.length} diverse quizzes as fallback`);
 
-      return sortedQuizzes.slice(0, limitNumber);
+      return this.formatQuizzesForFrontend(diverseQuizzes);
     } catch (error) {
-      console.error('Error getting recommended quizzes:', error);
+      console.error('❌ [QUIZ-REC] Error getting recommended quizzes:', error);
       throw new BadRequestException('Failed to get recommended quizzes');
     }
+  }
+
+  /**
+   * Select diverse quizzes across subjects and difficulties for better user experience
+   */
+  private selectDiverseQuizzes(allQuizzes: any[], limit: number): any[] {
+    // Group quizzes by subject and difficulty
+    const quizGroups: { [key: string]: any[] } = {};
+
+    allQuizzes.forEach(quiz => {
+      const subjectId = quiz.topicId?.subjectId || quiz.subjectId || 'unknown';
+      const difficulty = quiz.quizDifficulty || 'Medium';
+      const key = `${subjectId}-${difficulty}`;
+
+      if (!quizGroups[key]) {
+        quizGroups[key] = [];
+      }
+      quizGroups[key].push(quiz);
+    });
+
+    // Select one quiz from each group to ensure diversity
+    const selectedQuizzes: any[] = [];
+    const groupKeys = Object.keys(quizGroups);
+
+    // Round-robin selection to ensure variety
+    let currentIndex = 0;
+    while (selectedQuizzes.length < limit && currentIndex < groupKeys.length * 3) {
+      const groupKey = groupKeys[currentIndex % groupKeys.length];
+      const group = quizGroups[groupKey];
+
+      if (group && group.length > 0) {
+        // Remove and add quiz to avoid duplicates
+        const quiz = group.shift();
+        if (quiz && !selectedQuizzes.find(q => q._id?.toString() === quiz._id?.toString())) {
+          selectedQuizzes.push(quiz);
+        }
+      }
+
+      currentIndex++;
+    }
+
+    // If we still need more quizzes, add remaining ones
+    if (selectedQuizzes.length < limit) {
+      const remainingQuizzes = allQuizzes
+        .filter(quiz => !selectedQuizzes.find(q => q._id?.toString() === quiz._id?.toString()))
+        .slice(0, limit - selectedQuizzes.length);
+
+      selectedQuizzes.push(...remainingQuizzes);
+    }
+
+    return selectedQuizzes.slice(0, limit);
+  }
+
+  /**
+   * Format quizzes for frontend consumption
+   */
+  private formatQuizzesForFrontend(quizzes: any[]): any[] {
+    return quizzes.map(quiz => {
+      // Handle both direct quiz objects and recommendation objects with quiz data
+      const quizData = quiz._id ? quiz : (quiz.quiz || quiz);
+      
+      return {
+        id: quizData._id?.toString() || quizData.id,
+        title: quizData.title || 'Practice Quiz',
+        subjectId: quizData.subjectId?.toString() || quiz.metadata?.subjectId || '',
+        topicId: quizData.topicId?.toString() || quiz.metadata?.topicId || '',
+        questions: quizData.questions || quizData.questionIds || [],
+        timeLimit: quizData.timeLimit || 30,
+        difficulty: this.mapDifficultyToFrontend(quizData.quizDifficulty || quizData.difficulty || 'MEDIUM'),
+        type: 'standard',
+        createdAt: quizData.createdAt || new Date().toISOString(),
+        xpReward: quizData.xpReward || this.calculateXpReward(quizData.quizDifficulty || 'MEDIUM', 10),
+        description: quiz.recommendationReason || quizData.description || 'Practice quiz to improve your skills',
+        completions: quizData.attemptCount || 0,
+        rating: 4.5, // Default rating
+        // Add recommendation metadata if available
+        ...(quiz.metadata && {
+          recommendationReason: quiz.recommendationReason,
+          priority: quiz.priority,
+          source: quiz.metadata.source
+        })
+      };
+    });
+  }
+
+  /**
+   * Map backend difficulty to frontend format
+   */
+  private mapDifficultyToFrontend(backendDifficulty: string): string {
+    const mapping = {
+      'EASY': 'Easy',
+      'MEDIUM': 'Medium', 
+      'HARD': 'Hard',
+      'Easy': 'Easy',
+      'Medium': 'Medium',
+      'Hard': 'Hard'
+    };
+    return mapping[backendDifficulty] || 'Medium';
   }
   /**
    * Get or create topic-based quiz with user personalization
@@ -712,8 +826,6 @@ export class QuizzesController {
       throw new BadRequestException('Failed to get topics with questions');
     }
   }
-
-
 
   /**
    * Get quiz by ID

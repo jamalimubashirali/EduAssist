@@ -142,19 +142,140 @@ export class RecommendationsController {
     };
   }
 
+  @Get('user/:userId')
+  @HttpCode(HttpStatus.OK)
+  async getUserRecommendations(
+    @Param('userId') userId: string,
+    @Query('limit') limit: string = '10'
+  ) {
+    try {
+      const limitNumber = parseInt(limit, 10) || 10;
+      console.log(`🎯 [REC-CONTROLLER] Getting enhanced recommendations for user: ${userId}, limit: ${limitNumber}`);
+
+      // Get smart recommendations from the recommendation service
+      const smartRecommendations = await this.recommendationsService.getSmartRecommendations(userId);
+      
+      if (!smartRecommendations || smartRecommendations.length === 0) {
+        console.log(`⚠️ [REC-CONTROLLER] No smart recommendations found for user ${userId}`);
+        return {
+          recommendations: []
+        };
+      }
+
+      // Transform recommendations to match the expected format for enhanced recommendations
+      const enhancedRecommendations = smartRecommendations.slice(0, limitNumber).map(rec => ({
+        title: rec.title || `Practice ${rec.topicId?.topicName || 'Quiz'}`,
+        reason: rec.recommendationReason || rec.description || 'Recommended based on your performance',
+        difficulty: this.mapDifficultyToBackend(rec.suggestedDifficulty || 'Medium'),
+        priority: rec.priority || 50,
+        factors: this.extractFactorsFromRecommendation(rec),
+        goalContext: {
+          targetScore: 80, // Default target score
+          currentProgress: Math.max(0, Math.min(100, rec.priority || 50)),
+          scoreGap: Math.max(0, 80 - (rec.priority || 50)),
+          isWeakArea: (rec.priority || 50) < 60,
+          hasRecentlyImproved: (rec.urgency || 30) > 60,
+          weakAreasCount: rec.metadata?.weaknessScore ? Math.floor(rec.metadata.weaknessScore / 20) : 2,
+          strongAreasCount: rec.metadata?.improvementPotential ? Math.floor((100 - rec.metadata.improvementPotential) / 25) : 3
+        }
+      }));
+
+      console.log(`✅ [REC-CONTROLLER] Returning ${enhancedRecommendations.length} enhanced recommendations`);
+      return {
+        recommendations: enhancedRecommendations
+      };
+    } catch (error) {
+      console.error('❌ [REC-CONTROLLER] Error getting enhanced recommendations:', error);
+      return {
+        recommendations: []
+      };
+    }
+  }
+
+  /**
+   * Map frontend difficulty to backend format
+   */
+  private mapDifficultyToBackend(difficulty: string): 'EASY' | 'MEDIUM' | 'HARD' {
+    const mapping = {
+      'Easy': 'EASY',
+      'Medium': 'MEDIUM',
+      'Hard': 'HARD',
+      'beginner': 'EASY',
+      'intermediate': 'MEDIUM',
+      'advanced': 'HARD'
+    };
+    return (mapping[difficulty] as 'EASY' | 'MEDIUM' | 'HARD') || 'MEDIUM';
+  }
+
+  /**
+   * Extract factors from recommendation metadata
+   */
+  private extractFactorsFromRecommendation(rec: any): string[] {
+    const factors: string[] = [];
+    
+    if (rec.priority >= 70) factors.push('high_priority');
+    if (rec.urgency >= 70) factors.push('urgent');
+    if (rec.metadata?.weaknessScore >= 60) factors.push('weak_area');
+    if (rec.metadata?.improvementPotential >= 70) factors.push('improvement_potential');
+    if (rec.estimatedCompletionTime <= 15) factors.push('quick_win');
+    if (rec.confidence >= 0.8) factors.push('high_confidence');
+    
+    // Add default factors if none found
+    if (factors.length === 0) {
+      factors.push('personalized', 'performance_based');
+    }
+    
+    return factors;
+  }
+
   @Get('quizzes/:userId')
   @HttpCode(HttpStatus.OK)
   async getQuizRecommendations(
     @Param('userId') userId: string,
     @Query('limit') limit: string = '5'
   ) {
-    // Redirect to the existing quiz recommendations endpoint
-    // This maps the frontend's expected endpoint to the backend's actual endpoint
-    const limitNumber = parseInt(limit, 10) || 5;
+    try {
+      const limitNumber = parseInt(limit, 10) || 5;
+      console.log(`🎯 [REC-CONTROLLER] Getting quiz recommendations for user: ${userId}, limit: ${limitNumber}`);
 
-    // For now, return empty array to prevent 404 errors
-    // The actual quiz recommendations are handled by the quizzes controller
-    return [];
+      // Get smart recommendations from the recommendation service
+      const smartRecommendations = await this.recommendationsService.getSmartRecommendations(userId);
+      
+      if (!smartRecommendations || smartRecommendations.length === 0) {
+        console.log(`⚠️ [REC-CONTROLLER] No smart recommendations found for user ${userId}`);
+        return [];
+      }
+
+      // Transform recommendations into quiz-focused format
+      const quizRecommendations = smartRecommendations.slice(0, limitNumber).map(rec => ({
+        id: rec._id || rec.id,
+        title: rec.title || `Practice ${rec.topicId?.topicName || 'Quiz'}`,
+        description: rec.description || rec.recommendationReason,
+        difficulty: rec.suggestedDifficulty || 'Medium',
+        priority: rec.priority || 50,
+        urgency: rec.urgency || 50,
+        estimatedTime: rec.estimatedCompletionTime || 20,
+        topicId: rec.topicId?._id || rec.topicId,
+        topicName: rec.topicId?.topicName || 'Unknown Topic',
+        subjectId: rec.subjectId?._id || rec.subjectId,
+        subjectName: rec.subjectId?.subjectName || 'Unknown Subject',
+        recommendationReason: rec.recommendationReason,
+        recommendedQuizzes: rec.recommendedQuizzes || [],
+        metadata: {
+          source: 'smart_recommendations',
+          generatedBy: rec.metadata?.generatedBy || 'ai_system',
+          confidence: rec.metadata?.confidence || 0.8,
+          weaknessScore: rec.metadata?.weaknessScore || 0,
+          improvementPotential: rec.metadata?.improvementPotential || 0
+        }
+      }));
+
+      console.log(`✅ [REC-CONTROLLER] Returning ${quizRecommendations.length} quiz recommendations`);
+      return quizRecommendations;
+    } catch (error) {
+      console.error('❌ [REC-CONTROLLER] Error getting quiz recommendations:', error);
+      return [];
+    }
   }
 
   @Get(':id')

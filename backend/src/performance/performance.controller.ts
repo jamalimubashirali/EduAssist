@@ -95,4 +95,16 @@ export class PerformanceController {
 
     return this.performanceService.getUserGoalProgress(userId);
   }
+
+  @Post('refresh-goal-progress')
+  @HttpCode(HttpStatus.OK)
+  async refreshGoalProgress(@Req() req: Request) {
+    const userId = req.user?.['sub'];
+    if (!userId) {
+      throw new Error('User authentication required');
+    }
+
+    await this.performanceService.updateUserGoalProgressAndWeakAreas(userId);
+    return this.performanceService.getUserGoalProgress(userId);
+  }
 }

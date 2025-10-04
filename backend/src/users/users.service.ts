@@ -7,20 +7,14 @@ import { UpdateUserDto } from './dto/update.user.dto';
 import { QuestionsService } from '../questions/questions.service';
 import { PerformanceService } from '../performance/performance.service';
 import { RecommendationsService } from '../recommendations/recommendations.service';
-import { Attempt } from '../attempts/schema/attempts.schema';
-import { SubjectsService } from 'src/subjects/subjects.service';
-import { TopicsService } from 'src/topics/topics.service';
 
 @Injectable()
 export class UsersService {
     constructor(
         @InjectModel(User.name) private userModel: Model<User>,
-        @InjectModel(Attempt.name) private attemptModel: Model<Attempt>,
         private readonly questionsService: QuestionsService,
         private readonly performanceService: PerformanceService,
         private readonly recommendationsService: RecommendationsService,
-        private readonly subjectService: SubjectsService,
-        private readonly topicService: TopicsService
     ) { }
 
     async findAll(): Promise<User[]> {
@@ -139,9 +133,6 @@ export class UsersService {
         if (payload.username) {
             updates.name = payload.username;
         }
-        // if (payload.learning_style) {
-        //     updates['onboarding.learning_style'] = payload.learning_style;
-        // }
 
         if (payload.subjects) {
             updates.preferences = payload.subjects;

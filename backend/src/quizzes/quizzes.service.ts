@@ -68,7 +68,7 @@ export class QuizzesService {
     @InjectModel(Attempt.name) private attemptModel: Model<Attempt>,
     @InjectModel(User.name) private userModel: Model<User>,
     @InjectModel(Topic.name) private topicModel: Model<Topic>,
-  ) {}
+  ) { }
 
   async create(createQuizDto: CreateQuizDto): Promise<Quiz | null> {
     try {
@@ -142,7 +142,7 @@ export class QuizzesService {
       .populate('topicId', 'topicName topicDescription')
       .populate('questionIds', 'questionText questionDifficulty answerOptions correctAnswer')
       .exec();
-      
+
     if (!quiz) {
       throw new NotFoundException('Quiz not found');
     }
@@ -179,7 +179,7 @@ export class QuizzesService {
       .populate('topicId', 'topicName topicDescription')
       .populate('questionIds', 'questionText questionDifficulty answerOptions') // Exclude correctAnswer for attempt
       .exec();
-      
+
     if (!quiz) {
       throw new NotFoundException('Quiz not found');
     }
@@ -226,30 +226,30 @@ export class QuizzesService {
     }
   }
 
-    async update(id: string, updateQuizDto: UpdateQuizDto): Promise<Quiz> {
-      if (!Types.ObjectId.isValid(id)) {
-        throw new NotFoundException('Invalid quiz ID format');
-      }
-
-      // Validate questionIds if provided
-      if (updateQuizDto.questionIds) {
-        const invalidIds = updateQuizDto.questionIds.filter(qid => !Types.ObjectId.isValid(qid));
-        if (invalidIds.length > 0) {
-          throw new BadRequestException('Invalid question IDs provided');
-        }
-      }
-
-      const updatedQuiz = await this.quizModel
-        .findByIdAndUpdate(id, updateQuizDto, { new: true })
-        .populate('topicId', 'topicName topicDescription')
-        .populate('questionIds', 'questionText questionDifficulty answerOptions correctAnswer')
-        .exec();
-
-      if (!updatedQuiz) {
-        throw new NotFoundException('Quiz not found');
-      }
-      return updatedQuiz;
+  async update(id: string, updateQuizDto: UpdateQuizDto): Promise<Quiz> {
+    if (!Types.ObjectId.isValid(id)) {
+      throw new NotFoundException('Invalid quiz ID format');
     }
+
+    // Validate questionIds if provided
+    if (updateQuizDto.questionIds) {
+      const invalidIds = updateQuizDto.questionIds.filter(qid => !Types.ObjectId.isValid(qid));
+      if (invalidIds.length > 0) {
+        throw new BadRequestException('Invalid question IDs provided');
+      }
+    }
+
+    const updatedQuiz = await this.quizModel
+      .findByIdAndUpdate(id, updateQuizDto, { new: true })
+      .populate('topicId', 'topicName topicDescription')
+      .populate('questionIds', 'questionText questionDifficulty answerOptions correctAnswer')
+      .exec();
+
+    if (!updatedQuiz) {
+      throw new NotFoundException('Quiz not found');
+    }
+    return updatedQuiz;
+  }
 
   async remove(id: string): Promise<void> {
     if (!Types.ObjectId.isValid(id)) {
@@ -529,12 +529,12 @@ export class QuizzesService {
    */
   private calculateConsistency(attempts: any[]): number {
     if (attempts.length < 2) return 0.5;
-    
+
     const scores = attempts.map(a => a.score || 0);
     const mean = scores.reduce((a, b) => a + b, 0) / scores.length;
     const variance = scores.reduce((a, b) => a + Math.pow(b - mean, 2), 0) / scores.length;
     const standardDeviation = Math.sqrt(variance);
-    
+
     // Normalize consistency (lower deviation = higher consistency)
     return Math.max(0, 1 - (standardDeviation / 100));
   }
@@ -566,7 +566,7 @@ export class QuizzesService {
             const question = answer.questionId as any;
             const difficulty = question.questionDifficulty;
             const score = answer.isCorrect ? 100 : 0;
-            
+
             if (difficultyScores[difficulty]) {
               difficultyScores[difficulty].push(score);
             }
@@ -600,10 +600,10 @@ export class QuizzesService {
    */
   private calculateAverageTimePerQuestion(attempts: any[]): number {
     if (attempts.length === 0) return 60; // default 60 seconds
-    
+
     const totalTime = attempts.reduce((sum, attempt) => sum + (attempt.timeTaken || 0), 0);
     const totalQuestions = attempts.reduce((sum, attempt) => sum + (attempt.answersRecorded?.length || 0), 0);
-    
+
     return totalQuestions > 0 ? totalTime / totalQuestions : 60;
   }
 
@@ -626,7 +626,7 @@ export class QuizzesService {
    * Creates intelligent question selection strategy
    */
   private createQuestionSelectionStrategy(
-    analysis: UserAnalysis, 
+    analysis: UserAnalysis,
     config: PersonalizedQuizConfig
   ): QuestionSelectionStrategy {
     const difficultyDistribution = this.calculateDifficultyDistribution(analysis, config.questionsCount);
@@ -691,19 +691,19 @@ export class QuizzesService {
    */
   private determineFocusAreas(analysis: UserAnalysis): string[] {
     const areas: string[] = [];
-    
+
     if (analysis.weakAreas.length > 0) {
       areas.push('weakness_reinforcement');
     }
-    
+
     if (analysis.consistencyScore < 0.7) {
       areas.push('consistency_building');
     }
-    
+
     if (analysis.streakCount > 5) {
       areas.push('challenge_progression');
     }
-    
+
     return areas.length > 0 ? areas : ['general_practice'];
   }
 
@@ -915,10 +915,10 @@ export class QuizzesService {
     try {
       // Convert frontend difficulty to backend difficulty
       const backendDifficulty = difficulty.toUpperCase() as DifficultyLevel;
-      
+
       // Step 1: Find topics that belong to the subject
       let topicFilter: any = { subjectId: new Types.ObjectId(subjectId) };
-      
+
       // If specific topics are requested, filter by them
       if (topics && topics.length > 0) {
         const validTopicIds = topics.filter(id => Types.ObjectId.isValid(id));
@@ -988,7 +988,7 @@ export class QuizzesService {
    */
   private selectQuestionsWithSeededRandom<T>(array: T[], count: number, rng: () => number): T[] {
     if (array.length <= count) return [...array];
-    
+
     const shuffled = this.shuffleWithSeed([...array], rng);
     return shuffled.slice(0, count);
   }
@@ -1093,41 +1093,7 @@ export class QuizzesService {
     }
   }
 
-  /**
-   * Get topics that have questions available for practice
-   */
-  async getTopicsWithQuestions(subjectId: string): Promise<any[]> {
-    try {
-      // Get all topics for the subject
-      const topics = await this.topicModel.find({
-        subjectId: new Types.ObjectId(subjectId)
-      }).exec();
 
-      // Check which topics have questions
-      const topicsWithQuestions: any[] = [];
-      for (const topic of topics) {
-        const questionCount = await this.questionModel.countDocuments({
-          topicId: topic._id,
-          isActive: true
-        });
-
-        if (questionCount > 0) {
-          topicsWithQuestions.push({
-            id: topic._id.toString(),
-            name: topic.topicName,
-            description: topic.topicDescription,
-            questionCount,
-            difficulty: (topic as any).difficulty || 'Medium'
-          });
-        }
-      }
-
-      return topicsWithQuestions;
-    } catch (error) {
-      console.error('Error getting topics with questions:', error);
-      return [];
-    }
-  }
 
   /**
    * Find existing quiz for topic and difficulty
@@ -1182,13 +1148,385 @@ export class QuizzesService {
   }
 
   /**
+   * Get smart quiz recommendations for user based on recommendation service
+   */
+  async getSmartQuizRecommendationsForUser(userId: string, limit: number = 10): Promise<any[]> {
+    try {
+      console.log(`🧠 [SMART-REC] Getting smart recommendations for user: ${userId}`);
+
+      // Get user's pending recommendations from recommendation service
+      const recommendations = await this.performanceModel.aggregate([
+        {
+          $match: { userId: new Types.ObjectId(userId) }
+        },
+        {
+          $lookup: {
+            from: 'recommendations',
+            let: { userId: '$userId', topicId: '$topicId' },
+            pipeline: [
+              {
+                $match: {
+                  $expr: {
+                    $and: [
+                      { $eq: ['$userId', '$$userId'] },
+                      { $eq: ['$topicId', '$$topicId'] },
+                      { $eq: ['$recommendationStatus', 'PENDING'] }
+                    ]
+                  }
+                }
+              },
+              { $sort: { priority: -1, createdAt: -1 } },
+              { $limit: 1 }
+            ],
+            as: 'recommendations'
+          }
+        },
+        {
+          $unwind: {
+            path: '$recommendations',
+            preserveNullAndEmptyArrays: false
+          }
+        },
+        {
+          $lookup: {
+            from: 'topics',
+            localField: 'topicId',
+            foreignField: '_id',
+            as: 'topic'
+          }
+        },
+        {
+          $unwind: '$topic'
+        },
+        {
+          $lookup: {
+            from: 'subjects',
+            localField: 'topic.subjectId',
+            foreignField: '_id',
+            as: 'subject'
+          }
+        },
+        {
+          $unwind: '$subject'
+        },
+        {
+          $sort: { 'recommendations.priority': -1, 'recommendations.urgency': -1 }
+        },
+        {
+          $limit: limit
+        }
+      ]);
+
+      if (recommendations.length === 0) {
+        console.log(`⚠️ [SMART-REC] No recommendations found for user ${userId}`);
+        return [];
+      }
+
+      console.log(`📊 [SMART-REC] Found ${recommendations.length} recommendations, generating quizzes`);
+
+      // Generate quizzes based on recommendations
+      const recommendedQuizzes: any[] = [];
+
+      for (const rec of recommendations) {
+        try {
+          const recommendation = rec.recommendations;
+          const topic = rec.topic;
+          const subject = rec.subject;
+
+          // Find existing quizzes for this topic and difficulty
+          const existingQuizzes = await this.quizModel.find({
+            topicId: rec.topicId,
+            quizDifficulty: recommendation.suggestedDifficulty,
+            isPublished: true
+          }).populate('topicId', 'topicName subjectId').limit(2).exec();
+
+          if (existingQuizzes.length > 0) {
+            // Use existing quizzes
+            recommendedQuizzes.push(...existingQuizzes.map(quiz => ({
+              ...(quiz as any).toJSON(),
+              recommendationReason: recommendation.recommendationReason,
+              priority: recommendation.priority,
+              recommendationId: recommendation._id,
+              metadata: {
+                source: 'smart_recommendation',
+                topicName: topic.topicName,
+                subjectName: subject.subjectName,
+                suggestedDifficulty: recommendation.suggestedDifficulty,
+                subjectId: subject._id.toString(),
+                topicId: rec.topicId.toString()
+              }
+            })));
+          } else {
+            // Generate new quiz for this recommendation
+            console.log(`🏗️ [SMART-REC] Generating new quiz for topic: ${topic.topicName}`);
+
+            const config: PersonalizedQuizConfig = {
+              userId,
+              topicId: rec.topicId.toString(),
+              subjectId: subject._id.toString(),
+              questionsCount: 10,
+              sessionType: 'practice',
+              timeLimit: 20
+            };
+
+            const generatedQuiz = await this.generatePersonalizedQuiz(config);
+
+            if (generatedQuiz.quiz) {
+              recommendedQuizzes.push({
+                ...(generatedQuiz.quiz as any).toJSON(),
+                recommendationReason: recommendation.recommendationReason,
+                priority: recommendation.priority,
+                recommendationId: recommendation._id,
+                metadata: {
+                  source: 'smart_recommendation_generated',
+                  topicName: topic.topicName,
+                  subjectName: subject.subjectName,
+                  suggestedDifficulty: recommendation.suggestedDifficulty,
+                  questionsGenerated: generatedQuiz.questions.length,
+                  subjectId: subject._id.toString(),
+                  topicId: rec.topicId.toString()
+                }
+              });
+            }
+          }
+        } catch (error) {
+          console.error(`❌ [SMART-REC] Error processing recommendation for topic ${rec.topicId}:`, error);
+          continue;
+        }
+      }
+
+      console.log(`✅ [SMART-REC] Generated ${recommendedQuizzes.length} smart quiz recommendations`);
+      return recommendedQuizzes.slice(0, limit);
+    } catch (error) {
+      console.error('❌ [SMART-REC] Error getting smart quiz recommendations:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Get performance-based quiz recommendations for user
+   */
+  async getUserPerformanceBasedRecommendations(userId: string, limit: number = 10): Promise<any[]> {
+    try {
+      console.log(`📊 [PERF-REC] Getting performance-based recommendations for user: ${userId}`);
+
+      // Get user's performance data with weak areas
+      const performanceData = await this.performanceModel.aggregate([
+        {
+          $match: { userId: new Types.ObjectId(userId) }
+        },
+        {
+          $lookup: {
+            from: 'topics',
+            localField: 'topicId',
+            foreignField: '_id',
+            as: 'topic'
+          }
+        },
+        {
+          $unwind: '$topic'
+        },
+        {
+          $lookup: {
+            from: 'subjects',
+            localField: 'topic.subjectId',
+            foreignField: '_id',
+            as: 'subject'
+          }
+        },
+        {
+          $unwind: '$subject'
+        },
+        {
+          $addFields: {
+            isWeakArea: { $lt: ['$averageScore', 70] },
+            needsImprovement: { $lt: ['$masteryLevel', 60] },
+            priority: {
+              $cond: {
+                if: { $lt: ['$averageScore', 50] },
+                then: 90,
+                else: {
+                  $cond: {
+                    if: { $lt: ['$averageScore', 70] },
+                    then: 70,
+                    else: 40
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          $sort: { priority: -1, averageScore: 1 }
+        },
+        {
+          $limit: limit
+        }
+      ]);
+
+      if (performanceData.length === 0) {
+        console.log(`⚠️ [PERF-REC] No performance data found for user ${userId}`);
+        return [];
+      }
+
+      console.log(`📈 [PERF-REC] Found ${performanceData.length} performance records, generating recommendations`);
+
+      const recommendedQuizzes: any[] = [];
+
+      for (const perf of performanceData) {
+        try {
+          // Determine recommended difficulty based on performance
+          let recommendedDifficulty = 'Medium';
+          if (perf.averageScore < 50) {
+            recommendedDifficulty = 'Easy';
+          } else if (perf.averageScore > 80 && perf.masteryLevel > 75) {
+            recommendedDifficulty = 'Hard';
+          }
+
+          // Find quizzes for this topic and difficulty
+          const topicQuizzes = await this.quizModel.find({
+            topicId: perf.topicId,
+            quizDifficulty: recommendedDifficulty,
+            isPublished: true
+          }).populate('topicId', 'topicName subjectId').limit(2).exec();
+
+          if (topicQuizzes.length > 0) {
+            recommendedQuizzes.push(...topicQuizzes.map(quiz => ({
+              ...(quiz as any).toJSON(),
+              recommendationReason: this.generatePerformanceBasedReason(perf),
+              priority: perf.priority,
+              metadata: {
+                source: 'performance_based',
+                topicName: perf.topic.topicName,
+                subjectName: perf.subject.subjectName,
+                averageScore: perf.averageScore,
+                masteryLevel: perf.masteryLevel,
+                recommendedDifficulty,
+                isWeakArea: perf.isWeakArea,
+                subjectId: perf.subject._id.toString(),
+                topicId: perf.topicId.toString()
+              }
+            })));
+          } else {
+            // Generate quiz if none exists
+            console.log(`🏗️ [PERF-REC] Generating quiz for weak area: ${perf.topic.topicName}`);
+
+            const config: PersonalizedQuizConfig = {
+              userId,
+              topicId: perf.topicId.toString(),
+              subjectId: perf.subject._id.toString(),
+              questionsCount: 10,
+              sessionType: 'practice',
+              timeLimit: 20
+            };
+
+            const generatedQuiz = await this.generatePersonalizedQuiz(config);
+
+            if (generatedQuiz.quiz) {
+              recommendedQuizzes.push({
+                ...(generatedQuiz.quiz as any).toJSON(),
+                recommendationReason: this.generatePerformanceBasedReason(perf),
+                priority: perf.priority,
+                metadata: {
+                  source: 'performance_based_generated',
+                  topicName: perf.topic.topicName,
+                  subjectName: perf.subject.subjectName,
+                  averageScore: perf.averageScore,
+                  masteryLevel: perf.masteryLevel,
+                  recommendedDifficulty,
+                  isWeakArea: perf.isWeakArea,
+                  questionsGenerated: generatedQuiz.questions.length,
+                  subjectId: perf.subject._id.toString(),
+                  topicId: perf.topicId.toString()
+                }
+              });
+            }
+          }
+        } catch (error) {
+          console.error(`❌ [PERF-REC] Error processing performance data for topic ${perf.topicId}:`, error);
+          continue;
+        }
+      }
+
+      console.log(`✅ [PERF-REC] Generated ${recommendedQuizzes.length} performance-based recommendations`);
+      return recommendedQuizzes.slice(0, limit);
+    } catch (error) {
+      console.error('❌ [PERF-REC] Error getting performance-based recommendations:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Generate performance-based recommendation reason
+   */
+  private generatePerformanceBasedReason(performanceData: any): string {
+    const { averageScore, masteryLevel, topic, totalAttempts } = performanceData;
+
+    if (averageScore < 50) {
+      return `Focus on ${topic.topicName} - this is a weak area where you're scoring ${averageScore}%. Building a strong foundation here will significantly improve your overall performance.`;
+    } else if (averageScore < 70) {
+      return `Strengthen your understanding of ${topic.topicName}. You're scoring ${averageScore}% but have potential to reach your target. Practice will help solidify these concepts.`;
+    } else if (masteryLevel < 60) {
+      return `Develop mastery in ${topic.topicName}. While your recent score is ${averageScore}%, consistent practice will help you achieve true mastery.`;
+    } else {
+      return `Continue practicing ${topic.topicName} to maintain your ${averageScore}% performance and build on your strong foundation.`;
+    }
+  }
+
+  /**
+   * Get topics with available questions for practice
+   */
+  async getTopicsWithQuestions(subjectId: string): Promise<any[]> {
+    try {
+      const topics = await this.topicModel.aggregate([
+        {
+          $match: { subjectId: new Types.ObjectId(subjectId) }
+        },
+        {
+          $lookup: {
+            from: 'questions',
+            localField: '_id',
+            foreignField: 'topicId',
+            as: 'questions'
+          }
+        },
+        {
+          $addFields: {
+            questionCount: { $size: '$questions' },
+            hasQuestions: { $gt: [{ $size: '$questions' }, 0] }
+          }
+        },
+        {
+          $match: { hasQuestions: true }
+        },
+        {
+          $project: {
+            topicName: 1,
+            topicDescription: 1,
+            questionCount: 1,
+            subjectId: 1
+          }
+        },
+        {
+          $sort: { questionCount: -1 }
+        }
+      ]);
+
+      return topics;
+    } catch (error) {
+      console.error('Error getting topics with questions:', error);
+      return [];
+    }
+  }
+
+  /**
    * Generate assessment questions using optimized aggregation pipeline
    */
   async generateAssessmentWithAggregation(subjectIds: string[], count: number = 15): Promise<any[]> {
     try {
       console.log(`[generateAssessmentWithAggregation] Starting optimized assessment generation for ${subjectIds.length} subjects`);
       const startTime = Date.now();
-      
+
       const validSubjectIds = subjectIds
         .filter(id => Types.ObjectId.isValid(id))
         .map(id => new Types.ObjectId(id));
@@ -1200,11 +1538,11 @@ export class QuizzesService {
       // Simplified and reliable aggregation pipeline for assessment generation
       const questions = await this.questionModel.aggregate([
         // Match active questions from selected subjects
-        { 
-          $match: { 
-            subjectId: { $in: validSubjectIds }, 
-            isActive: true 
-          } 
+        {
+          $match: {
+            subjectId: { $in: validSubjectIds },
+            isActive: true
+          }
         },
         // Add random field for shuffling
         {
@@ -1273,24 +1611,24 @@ export class QuizzesService {
       return questions;
     } catch (error) {
       console.error('Error in generateAssessmentWithAggregation:', error);
-      
+
       // Fallback to simple query if aggregation fails
       try {
         console.log('[generateAssessmentWithAggregation] Falling back to simple query');
         const fallbackQuestions = await this.questionModel
-          .find({ 
-            subjectId: { $in: subjectIds }, 
-            isActive: true 
+          .find({
+            subjectId: { $in: subjectIds },
+            isActive: true
           })
           .populate('topicId', 'topicName')
           .populate('subjectId', 'subjectName')
           .limit(count * 2)
           .exec();
-        
+
         // Shuffle and limit the results
         const shuffled = fallbackQuestions.sort(() => Math.random() - 0.5);
         const result = shuffled.slice(0, count);
-        
+
         console.log(`[generateAssessmentWithAggregation] Fallback completed, returning ${result.length} questions`);
         return result;
       } catch (fallbackError) {

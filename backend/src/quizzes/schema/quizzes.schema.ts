@@ -62,6 +62,12 @@ export class Quiz {
 
     @Prop({ type: Boolean, default: true })
     isActive: boolean;
+
+    @Prop({ type: Boolean, default: true })
+    isPublished: boolean;
+
+    @Prop({ type: Number, default: 100 })
+    xpReward: number;
 }
 
 export const QuizSchema = SchemaFactory.createForClass(Quiz);

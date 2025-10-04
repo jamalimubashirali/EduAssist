@@ -123,8 +123,8 @@ export function usePrioritizedRecommendations(userId?: string, limit: number = 5
     insights: {
       highPriorityCount: smartRecommendations?.filter(r => r.priority >= 70).length || 0,
       urgentCount: smartRecommendations?.filter(r => r.urgency >= 70).length || 0,
-      averagePriority: smartRecommendations?.length 
-        ? smartRecommendations.reduce((sum, r) => sum + r.priority, 0) / smartRecommendations.length 
+      averagePriority: smartRecommendations?.length
+        ? smartRecommendations.reduce((sum, r) => sum + r.priority, 0) / smartRecommendations.length
         : 0,
       averageUrgency: smartRecommendations?.length
         ? smartRecommendations.reduce((sum, r) => sum + r.urgency, 0) / smartRecommendations.length
@@ -159,16 +159,16 @@ export function usePerformanceRecommendationSync(userId?: string) {
     },
     onSuccess: (newRecommendations) => {
       // Invalidate all recommendation caches to fetch fresh data
-      queryClient.invalidateQueries({ 
-        queryKey: intelligentRecommendationKeys.smart(targetUserId!) 
+      queryClient.invalidateQueries({
+        queryKey: intelligentRecommendationKeys.smart(targetUserId!)
       })
-      queryClient.invalidateQueries({ 
-        queryKey: recommendationKeys.user(targetUserId!) 
+      queryClient.invalidateQueries({
+        queryKey: recommendationKeys.user(targetUserId!)
       })
-      queryClient.invalidateQueries({ 
-        queryKey: intelligentRecommendationKeys.analytics(targetUserId!) 
+      queryClient.invalidateQueries({
+        queryKey: intelligentRecommendationKeys.analytics(targetUserId!)
       })
-      
+
       if (newRecommendations.length > 0) {
         toast.success(`Generated ${newRecommendations.length} personalized recommendations based on your performance! 🎯`)
       }
@@ -221,10 +221,10 @@ export function useAdaptiveRecommendations(userId?: string) {
     },
     onSuccess: (feedback, variables) => {
       // Invalidate recommendations to trigger re-prioritization
-      queryClient.invalidateQueries({ 
-        queryKey: intelligentRecommendationKeys.smart(targetUserId!) 
+      queryClient.invalidateQueries({
+        queryKey: intelligentRecommendationKeys.smart(targetUserId!)
       })
-      
+
       toast.success('Thank you! Your feedback helps improve recommendations 🎯')
     },
     onError: (error: any) => {
@@ -234,21 +234,21 @@ export function useAdaptiveRecommendations(userId?: string) {
 
   // Batch update recommendations with intelligent status management
   const batchUpdateStatus = useMutation({
-    mutationFn: async ({ recommendationIds, status }: { 
+    mutationFn: async ({ recommendationIds, status }: {
       recommendationIds: string[]
-      status: string 
+      status: string
     }) => {
       return await recommendationService.batchUpdateRecommendationStatus(recommendationIds, status)
     },
     onSuccess: (result, variables) => {
       // Invalidate all related queries
-      queryClient.invalidateQueries({ 
-        queryKey: intelligentRecommendationKeys.smart(targetUserId!) 
+      queryClient.invalidateQueries({
+        queryKey: intelligentRecommendationKeys.smart(targetUserId!)
       })
-      queryClient.invalidateQueries({ 
-        queryKey: intelligentRecommendationKeys.analytics(targetUserId!) 
+      queryClient.invalidateQueries({
+        queryKey: intelligentRecommendationKeys.analytics(targetUserId!)
       })
-      
+
       toast.success(`Updated ${result.modifiedCount} recommendations`)
     },
     onError: (error: any) => {
@@ -263,24 +263,24 @@ export function useAdaptiveRecommendations(userId?: string) {
     batchUpdateStatus,
     isProvidingFeedback: provideFeedback.isPending,
     isBatchUpdating: batchUpdateStatus.isPending,
-    
+
     // Adaptive insights based on user behavior patterns
     adaptiveInsights: {
       // Recommendations that need immediate attention
       urgentRecommendations: smartRecommendations?.filter(r => r.urgency >= 70) || [],
-      
+
       // High-confidence recommendations likely to be helpful
       highConfidenceRecommendations: smartRecommendations?.filter(r => r.confidence >= 0.8) || [],
-      
+
       // Quick wins (high priority, low time commitment)
       quickWins: smartRecommendations?.filter(r => r.priority >= 60 && r.estimatedTime <= 20) || [],
-      
+
       // Long-term improvement opportunities
       longTermOpportunities: smartRecommendations?.filter(r => r.estimatedTime > 30) || [],
-      
+
       // Effectiveness score from backend analytics
       systemEffectiveness: analytics?.effectivenessScore || 0,
-      
+
       // User engagement with recommendations
       engagementRate: analytics?.completionRate || 0,
     }
@@ -292,16 +292,16 @@ export function useIntelligentRecommendationSystem(userId?: string) {
   const { user } = useUserStore()
   const targetUserId = userId || user?.id
 
-  const { recommendations, isLoading: smartLoading } = useIntelligentRecommendations(targetUserId)
+  const { data: recommendations, isLoading: smartLoading } = useIntelligentRecommendations(targetUserId)
   const { recommendations: prioritized, insights: priorityInsights, isLoading: priorityLoading } = usePrioritizedRecommendations(targetUserId, 10)
-  const { analytics, isLoading: analyticsLoading } = useRecommendationAnalytics(targetUserId)
+  const { data: analytics, isLoading: analyticsLoading } = useRecommendationAnalytics(targetUserId)
   const { syncRecommendationsAfterPerformance, isRegenerating } = usePerformanceRecommendationSync(targetUserId)
-  const { 
-    provideFeedback, 
-    batchUpdateStatus, 
+  const {
+    provideFeedback,
+    batchUpdateStatus,
     adaptiveInsights,
     isProvidingFeedback,
-    isBatchUpdating 
+    isBatchUpdating
   } = useAdaptiveRecommendations(targetUserId)
 
   // Auto-sync recommendations when performance data changes
@@ -319,7 +319,7 @@ export function useIntelligentRecommendationSystem(userId?: string) {
 
     // Listen for performance update events
     window.addEventListener('performance-updated', handlePerformanceUpdate as EventListener)
-    
+
     return () => {
       window.removeEventListener('performance-updated', handlePerformanceUpdate as EventListener)
     }
@@ -330,43 +330,43 @@ export function useIntelligentRecommendationSystem(userId?: string) {
     allRecommendations: recommendations || [],
     prioritizedRecommendations: prioritized,
     analytics,
-    
+
     // Loading states
     isLoading: smartLoading || priorityLoading || analyticsLoading,
     isRegenerating,
     isProvidingFeedback,
     isBatchUpdating,
-    
+
     // Actions
     syncRecommendationsAfterPerformance,
     provideFeedback,
     batchUpdateStatus,
-    
+
     // Enhanced insights combining all backend intelligence
     intelligentInsights: {
       // Priority-based insights
       ...priorityInsights,
-      
+
       // Adaptive behavior insights
       ...adaptiveInsights,
-      
+
       // Overall system intelligence metrics
       totalRecommendations: recommendations?.length || 0,
       systemHealth: {
         dataFreshness: analytics?.totalRecommendations ? 'good' : 'needs-update',
-        algorithmPerformance: analytics?.effectivenessScore >= 70 ? 'excellent' : 
-                             analytics?.effectivenessScore >= 50 ? 'good' : 'needs-improvement',
-        userEngagement: analytics?.completionRate >= 60 ? 'high' : 
-                       analytics?.completionRate >= 30 ? 'moderate' : 'low',
+        algorithmPerformance: (analytics?.effectivenessScore ?? 0) >= 70 ? 'excellent' :
+          (analytics?.effectivenessScore ?? 0) >= 50 ? 'good' : 'needs-improvement',
+        userEngagement: (analytics?.completionRate ?? 0) >= 60 ? 'high' :
+          (analytics?.completionRate ?? 0) >= 30 ? 'moderate' : 'low',
       },
-      
+
       // Personalization quality indicators
       personalizationQuality: {
-        diversityScore: analytics?.subjectDistribution ? 
+        diversityScore: analytics?.subjectDistribution ?
           Object.keys(analytics.subjectDistribution).length : 0,
         relevanceScore: priorityInsights.averagePriority,
         timeliness: priorityInsights.averageUrgency,
-        confidence: recommendations?.length ? 
+        confidence: recommendations?.length ?
           recommendations.reduce((sum, r) => sum + r.confidence, 0) / recommendations.length : 0,
       }
     }
@@ -387,7 +387,7 @@ export function useQuizCompletionRecommendationTrigger() {
   }) => {
     // Calculate performance metrics
     const scorePercentage = (attemptData.score / attemptData.totalQuestions) * 100
-    
+
     // Trigger recommendation sync with performance context
     syncRecommendationsAfterPerformance({
       attemptId: attemptData.attemptId,
