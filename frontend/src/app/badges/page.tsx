@@ -38,8 +38,6 @@ export default function BadgesPage() {
     return categoryMatch && rarityMatch
   })
 
-  console.log({ badges, unlockedBadges, lockedBadges, summary , filteredBadges });
-
   const categories = [
     { id: 'all', label: 'All Badges', icon: Award },
     { id: 'learning', label: 'Learning', icon: BookOpen },
