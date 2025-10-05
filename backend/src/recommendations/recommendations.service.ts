@@ -275,26 +275,37 @@ export class RecommendationsService {
     return Math.min(baseConfidence + (scoreReliability * 0.3) + (trendReliability * 0.2), 1);
   }
 
-  // Enhanced priority calculation for attempt data
+  // FIXED: Priority calculation - Higher priority for WEAK areas (low scores)
   private calculateAttemptPriority(data: { attemptScore: number; averageScore: number }): number {
-    let priority = 50; // Base priority
+    let priority = 30; // Base priority
+    const targetScore = 80; // Default target score
 
-    // Higher priority for struggling performance
+    // CORRECT LOGIC: Higher priority for scores BELOW target (weak areas that need help)
     if (data.attemptScore < 50) {
-      priority += 40;
-    } else if (data.attemptScore < 70) {
-      priority += 20;
+      priority = 95; // URGENT: Very weak performance
+    } else if (data.attemptScore < 65) {
+      priority = 85; // HIGH: Below average performance
+    } else if (data.attemptScore < targetScore) {
+      priority = 70; // MEDIUM-HIGH: Below target but improving
+    } else if (data.attemptScore < 90) {
+      priority = 40; // LOW-MEDIUM: At target, maintenance mode
+    } else {
+      priority = 20; // LOW: Strong performance, challenge mode
     }
 
     // Adjust based on performance trend
     const trend = data.attemptScore - data.averageScore;
-    if (trend < -20) {
-      priority += 30; // Declining performance needs urgent attention
-    } else if (trend > 20) {
-      priority += 10; // Improving performance deserves recognition
+    if (trend < -15) {
+      priority += 20; // Declining performance needs urgent attention
+    } else if (trend < -5) {
+      priority += 10; // Slight decline needs attention
+    } else if (trend > 15 && data.attemptScore < targetScore) {
+      priority += 5; // Improving but still weak
+    } else if (trend > 15 && data.attemptScore >= targetScore) {
+      priority -= 10; // Improving and strong, lower priority
     }
 
-    return Math.min(priority, 100);
+    return Math.max(15, Math.min(priority, 100)); // Ensure priority stays between 15-100
   }
 
   async autoGenerateRecommendation(attemptId: string): Promise<Recommendation | null> {
@@ -536,22 +547,87 @@ export class RecommendationsService {
     return this.updateStatus(id, RecommendationStatus.COMPLETED);
   }
 
-  // Helper methods
+  // FIXED: Priority calculation - Easy difficulty = weak areas = HIGH priority
   private calculateRecommendationPriority(recommendation: Recommendation): number {
-    let priority = 50; // Base priority
+    let priority = 40; // Base priority
 
-    // Higher priority for struggling students (easy difficulty suggestions)
+    // CORRECT LOGIC: Easy difficulty means weak area = HIGH priority
     if (recommendation.suggestedDifficulty === DifficultyLevel.EASY) {
-      priority += 30;
+      priority = 85; // HIGH priority - student struggling, needs help
+    } else if (recommendation.suggestedDifficulty === DifficultyLevel.MEDIUM) {
+      priority = 60; // MEDIUM priority - moderate performance
     } else if (recommendation.suggestedDifficulty === DifficultyLevel.HARD) {
-      priority += 10;
+      priority = 30; // LOW priority - strong performance, challenge mode
     }
 
-    // Increase priority for older recommendations
+    // Increase priority for older recommendations (urgent attention needed)
     const daysSinceCreated = Math.floor((Date.now() - recommendation.createdAt.getTime()) / (1000 * 60 * 60 * 24));
-    priority += Math.min(daysSinceCreated * 2, 20);
+    if (daysSinceCreated > 7) priority += 15; // Very old recommendations need attention
+    else if (daysSinceCreated > 3) priority += 10;
+    else if (daysSinceCreated > 1) priority += 5;
 
-    return Math.min(priority, 100);
+    return Math.max(20, Math.min(priority, 100)); // Ensure priority stays between 20-100
+  }
+
+  /**
+   * FIXED: Generate recommendation reason focusing on WEAK areas for improvement
+   */
+  generateRecommendationReason(currentPerformance: number, targetScore: number, scoreGap: number, rec: any): string {
+    const topicName = rec.metadata?.topicName || rec.topicId?.topicName || 'this topic';
+    const progressToTarget = Math.min(100, (currentPerformance / targetScore) * 100);
+
+    // CORRECT LOGIC: Focus on weak areas that need improvement
+    if (currentPerformance < 50) {
+      // Very weak performance - URGENT
+      return `🚨 URGENT: ${topicName} needs immediate attention! Your ${currentPerformance}% score is significantly below target. This weak area requires intensive practice to improve your overall performance.`;
+    } else if (currentPerformance < 65) {
+      // Below average - HIGH PRIORITY
+      return `⚠️ ${topicName} is a weak area requiring focus. Your ${currentPerformance}% score needs improvement to reach your ${targetScore}% target. Strengthening this area will boost your overall progress.`;
+    } else if (currentPerformance < targetScore) {
+      // Below target - MEDIUM PRIORITY  
+      return `📈 ${topicName} needs practice to reach your ${targetScore}% target. You're ${Math.round(scoreGap)}% away from your goal. Focus on this area to accelerate your progress.`;
+    } else if (currentPerformance < 90) {
+      // At/above target - LOW PRIORITY
+      return `✅ ${topicName} is performing well at ${currentPerformance}%. Consider occasional review to maintain this level while focusing on weaker areas.`;
+    } else {
+      // Strong performance - VERY LOW PRIORITY
+      return `🌟 Excellent work in ${topicName}! Your ${currentPerformance}% score shows mastery. Focus your energy on weaker topics that need more attention.`;
+    }
+  }
+
+  /**
+   * FIXED: Generate recommendation content focusing on WEAK areas that need help
+   */
+  generateRecommendationContent(topicName: string, priority: number, currentScore: number = 0, targetScore: number = 80): { title: string; description: string; type: string } {
+    if (priority >= 80) {
+      // High priority - WEAK area needing urgent help
+      return {
+        title: `🚨 Focus on ${topicName}`,
+        description: `This is a weak area requiring immediate attention. Your performance is below expectations and needs intensive practice to improve.`,
+        type: 'weak'
+      };
+    } else if (priority >= 60) {
+      // Medium-high priority - Below target area
+      return {
+        title: `📈 Improve ${topicName}`,
+        description: `This area needs practice to reach your ${targetScore}% target. Focus here to boost your overall performance.`,
+        type: 'weak'
+      };
+    } else if (priority >= 40) {
+      // Medium priority - Moderate performance
+      return {
+        title: `🔄 Practice ${topicName}`,
+        description: `You're making progress but could benefit from additional practice to solidify your understanding.`,
+        type: 'practice'
+      };
+    } else {
+      // Low priority - Strong area (maintenance only)
+      return {
+        title: `✅ Maintain ${topicName}`,
+        description: `You're performing well in this area. Occasional review will help maintain your strong performance.`,
+        type: 'advanced'
+      };
+    }
   }
 
   private calculateUrgency(recommendation: Recommendation): number {
@@ -613,7 +689,7 @@ export class RecommendationsService {
     }
   }
 
-  // Generate personalized recommendation based on user profile and performance
+  // FIXED: Generate personalized recommendation focusing on WEAK areas that need help
   private generatePersonalizedRecommendation(
     attemptScore: number,
     averageScore: number,
@@ -621,13 +697,9 @@ export class RecommendationsService {
   ): any {
     const learningStyle = onboardingData?.learningStyle || 'BALANCED';
     const proficiencyLevel = onboardingData?.proficiencyLevel || 'INTERMEDIATE';
-    const targetScore = onboardingData?.targetScore || 75;
+    const targetScore = onboardingData?.targetScore || 80;
     const weakAreas = onboardingData?.weakAreas || [];
     const strongAreas = onboardingData?.strongAreas || [];
-    const recentlyImprovedAreas = onboardingData?.recentlyImprovedAreas || [];
-    const newlyWeakAreas = onboardingData?.newlyWeakAreas || [];
-    const goalProgress = onboardingData?.goalProgress || {};
-    const focusAreaProgress = onboardingData?.focusAreaProgress || [];
     
     let title = '';
     let reason = '';
@@ -635,143 +707,79 @@ export class RecommendationsService {
     let priority = 50;
     const factors: string[] = [];
 
-    // Enhanced recommendation based on goal progress and weak areas
-    const isInWeakArea = weakAreas.length > 0;
-    const hasRecentlyImproved = recentlyImprovedAreas.length > 0;
-    const hasNewWeakAreas = newlyWeakAreas.length > 0;
-    const progressPercentage = goalProgress?.progressPercentage || 0;
-    const scoreGap = goalProgress?.scoreGap || 0;
-
-    // Priority-based recommendation logic using goal progress
-    if (hasNewWeakAreas && attemptScore < targetScore) {
-      title = 'Urgent: New Weak Area Detected';
-      reason = `This topic has recently become a weak area. Focus on strengthening it to maintain your ${targetScore}% goal progress. `;
+    // CORRECT LOGIC: Focus on weak areas (low scores) with high priority
+    if (attemptScore < 50) {
+      // Very weak performance - URGENT PRIORITY
+      title = '🚨 Urgent Practice Needed';
+      reason = `Your ${attemptScore}% score indicates this is a critical weak area requiring immediate attention. Intensive practice is needed to improve your understanding.`;
       difficulty = DifficultyLevel.EASY;
-      priority = 90;
-      factors.push('new_weak_area', 'goal_based');
-    } else if (isInWeakArea && attemptScore < targetScore) {
-      title = 'Weak Area Focus Required';
-      reason = `This is one of your ${weakAreas.length} weak areas. Improving here will significantly boost your overall goal progress (currently ${progressPercentage}%). `;
+      priority = 95;
+      factors.push('critical_weak_area', 'urgent_attention');
+    } else if (attemptScore < 65) {
+      // Below average - HIGH PRIORITY
+      title = '⚠️ Focus Area Required';
+      reason = `Your ${attemptScore}% score shows this topic needs significant improvement. This weak area should be prioritized in your study plan.`;
       difficulty = DifficultyLevel.EASY;
       priority = 85;
-      factors.push('weak_area_focus', 'goal_based');
-    } else if (hasRecentlyImproved && attemptScore >= targetScore) {
-      title = 'Excellent Progress! Maintain Momentum';
-      reason = `Great job improving in this area! You've moved this topic out of your weak areas. Continue practicing to solidify your gains. `;
+      factors.push('weak_area', 'high_priority');
+    } else if (attemptScore < targetScore) {
+      // Below target - MEDIUM PRIORITY
+      title = '📈 Improvement Needed';
+      reason = `Your ${attemptScore}% score is below your ${targetScore}% target. Focus on this area to reach your goal.`;
       difficulty = DifficultyLevel.MEDIUM;
-      priority = 40;
-      factors.push('recently_improved', 'goal_achieved');
-    } else if (attemptScore >= targetScore && strongAreas.length > 0) {
-      title = 'Strong Area - Ready for Challenge';
-      reason = `This is one of your strong areas. Challenge yourself with harder questions to excel beyond your ${targetScore}% target. `;
-      difficulty = DifficultyLevel.HARD;
-      priority = 30;
-      factors.push('strong_area', 'challenge_ready');
-    } else if (scoreGap > 15) {
-      title = 'Goal Gap - Intensive Focus Needed';
-      reason = `You're ${scoreGap}% away from your target score. This topic needs intensive practice to close the gap. `;
-      difficulty = DifficultyLevel.EASY;
-      priority = 80;
-      factors.push('large_goal_gap', 'intensive_focus');
+      priority = 70;
+      factors.push('below_target', 'needs_improvement');
+    } else if (attemptScore < 90) {
+      // At/above target - LOW PRIORITY
+      title = '✅ Maintenance Practice';
+      reason = `Your ${attemptScore}% score meets your target. Occasional practice will help maintain this level while you focus on weaker areas.`;
+      difficulty = DifficultyLevel.MEDIUM;
+      priority = 35;
+      factors.push('target_achieved', 'maintenance');
     } else {
-      // Fallback to original logic for edge cases
-      if (attemptScore < targetScore - 10) {
-        title = 'Below Target - Foundation Building';
-        reason = `Your score is below your ${targetScore}% target. Let's build a strong foundation in this topic. `;
-        difficulty = DifficultyLevel.EASY;
-        priority = 75;
-        factors.push('below_target');
-      } else if (attemptScore < targetScore) {
-        title = 'Near Target - Skill Development';
-        reason = `You're close to your ${targetScore}% target! A bit more practice will get you there. `;
-        difficulty = DifficultyLevel.MEDIUM;
-        priority = 60;
-        factors.push('near_target');
-      } else {
-        title = 'Target Achieved - Maintain Excellence';
-        reason = `Excellent! You've reached your ${targetScore}% target. Keep practicing to maintain this level. `;
-        difficulty = DifficultyLevel.MEDIUM;
-        priority = 40;
-        factors.push('target_achieved');
-      }
+      // Strong performance - VERY LOW PRIORITY
+      title = '🌟 Optional Challenge';
+      reason = `Excellent ${attemptScore}% score! This is a strong area. Focus your energy on topics that need more attention.`;
+      difficulty = DifficultyLevel.HARD;
+      priority = 20;
+      factors.push('strong_area', 'optional_challenge');
     }
 
-    // Focus area considerations
-    const currentTopicInFocusArea = focusAreaProgress.find(fp => 
-      fp.area && reason.toLowerCase().includes(fp.area.toLowerCase())
-    );
-    
-    if (currentTopicInFocusArea) {
-      if (!currentTopicInFocusArea.isOnTrack) {
-        reason += `This topic is part of your "${currentTopicInFocusArea.area}" focus area, which needs attention. `;
-        priority += 15;
-        factors.push('focus_area_behind');
-      } else if (currentTopicInFocusArea.improvement) {
-        reason += `Great progress in your "${currentTopicInFocusArea.area}" focus area! `;
-        factors.push('focus_area_improving');
-      }
-    }
-
-    // Adjust based on learning style with goal context
-    if (learningStyle === 'ANALYTICAL') {
-      reason += 'Given your analytical learning style, focus on understanding the underlying principles and step-by-step problem solving. ';
-      factors.push('analytical_learner');
-    } else if (learningStyle === 'INTUITIVE') {
-      reason += 'As an intuitive learner, try varied question types and gamified practice sessions. ';
-      factors.push('intuitive_learner');
-    } else if (learningStyle === 'NEEDS_SUPPORT') {
-      reason += 'We recommend starting with guided examples and visual learning aids to build confidence. ';
-      // Lower difficulty for users needing support
-      if (difficulty === DifficultyLevel.HARD) {
-        difficulty = DifficultyLevel.MEDIUM;
-      } else if (difficulty === DifficultyLevel.MEDIUM) {
-        difficulty = DifficultyLevel.EASY;
-      }
+    // Adjust based on performance trend
+    const trend = attemptScore - averageScore;
+    if (trend < -15) {
+      reason += ' Your declining performance in this area needs urgent attention.';
       priority += 20;
+      factors.push('declining_performance');
+    } else if (trend > 15 && attemptScore < targetScore) {
+      reason += ' Your improving trend is encouraging - keep focusing on this weak area!';
+      priority += 5;
+      factors.push('improving_weak_area');
+    }
+
+    // Adjust based on learning style
+    if (learningStyle === 'NEEDS_SUPPORT' && priority >= 70) {
+      reason += ' We recommend starting with guided examples and visual aids to build confidence.';
+      if (difficulty === DifficultyLevel.MEDIUM) difficulty = DifficultyLevel.EASY;
+      priority += 10;
       factors.push('needs_support');
     }
 
     // Adjust based on proficiency level
-    if (proficiencyLevel === 'BEGINNER' && difficulty === DifficultyLevel.HARD) {
-      difficulty = DifficultyLevel.MEDIUM;
-      reason += 'We\'ve adjusted the difficulty to match your current proficiency level. ';
-      factors.push('proficiency_adjusted');
-    } else if (proficiencyLevel === 'ADVANCED' && difficulty === DifficultyLevel.EASY) {
-      difficulty = DifficultyLevel.MEDIUM;
-      reason += 'Based on your advanced proficiency, we\'re recommending a slightly higher challenge level. ';
-      factors.push('proficiency_enhanced');
-    }
-
-    // Enhanced performance trend consideration with goal context
-    const trend = attemptScore - averageScore;
-    if (trend > 10) {
-      reason += 'Your improving trend shows you\'re ready for the next level! ';
-      factors.push('improving_trend');
-      if (isInWeakArea) {
-        reason += 'This improvement in a weak area is especially valuable for your goal progress. ';
-        factors.push('weak_area_improving');
-      }
-    } else if (trend < -10) {
-      reason += 'Let\'s focus on consolidating your knowledge before advancing. ';
-      factors.push('declining_trend');
-      priority += 15;
-      if (strongAreas.includes('current_topic')) {
-        reason += 'This decline in a previously strong area needs immediate attention. ';
-        priority += 10;
-        factors.push('strong_area_declining');
-      }
-    }
-
-    // Add goal progress context to reason
-    if (progressPercentage < 50) {
-      reason += `Focus on weak areas to accelerate your goal progress (currently ${progressPercentage}%). `;
-    } else if (progressPercentage >= 80) {
-      reason += `You're doing great with ${progressPercentage}% goal progress! `;
+    if (proficiencyLevel === 'BEGINNER' && priority >= 70) {
+      reason += ' As a beginner, focus on building strong fundamentals in this weak area.';
+      if (difficulty === DifficultyLevel.MEDIUM) difficulty = DifficultyLevel.EASY;
+      factors.push('beginner_weak_area');
     }
 
     return {
       title,
       reason: reason.trim(),
+      difficulty,
+      priority: Math.max(15, Math.min(priority, 100)),
+      factors
+    };
+  }
       difficulty,
       priority: Math.min(priority, 100),
       factors,

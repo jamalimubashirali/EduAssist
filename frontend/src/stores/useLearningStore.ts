@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { devtools } from 'zustand/middleware';
-import { Subject, Topic, Recommendation } from '@/types';
+import { Subject, Topic } from '@/types';
+import { Recommendation } from '@/services/recommendationService';
 
 interface LearningState {
   subjects: Subject[];

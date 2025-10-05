@@ -1317,6 +1317,17 @@ export class QuizzesService {
         },
         {
           $lookup: {
+            from: 'users',
+            localField: 'userId',
+            foreignField: '_id',
+            as: 'user'
+          }
+        },
+        {
+          $unwind: '$user'
+        },
+        {
+          $lookup: {
             from: 'topics',
             localField: 'topicId',
             foreignField: '_id',
@@ -1339,17 +1350,26 @@ export class QuizzesService {
         },
         {
           $addFields: {
-            isWeakArea: { $lt: ['$averageScore', 70] },
+            // Get user's target score (default 80%)
+            targetScore: { $ifNull: ['$user.onboarding.learningPreferences.targetScore', 80] },
+            isWeakArea: { $lt: ['$averageScore', { $ifNull: ['$user.onboarding.learningPreferences.targetScore', 80] }] },
             needsImprovement: { $lt: ['$masteryLevel', 60] },
+            // CORRECT PRIORITY LOGIC: High priority for weak areas (below target), low priority for strong areas (at/above target)
             priority: {
               $cond: {
-                if: { $lt: ['$averageScore', 50] },
-                then: 90,
+                if: { $lt: ['$averageScore', { $subtract: [{ $ifNull: ['$user.onboarding.learningPreferences.targetScore', 80] }, 20] }] },
+                then: 90, // High priority: significantly below target
                 else: {
                   $cond: {
-                    if: { $lt: ['$averageScore', 70] },
-                    then: 70,
-                    else: 40
+                    if: { $lt: ['$averageScore', { $ifNull: ['$user.onboarding.learningPreferences.targetScore', 80] }] },
+                    then: 70, // Medium priority: below target but close
+                    else: {
+                      $cond: {
+                        if: { $lt: ['$averageScore', { $add: [{ $ifNull: ['$user.onboarding.learningPreferences.targetScore', 80] }, 10] }] },
+                        then: 30, // Low priority: at target
+                        else: 20  // Very low priority: well above target
+                      }
+                    }
                   }
                 }
               }
@@ -1375,13 +1395,19 @@ export class QuizzesService {
 
       for (const perf of performanceData) {
         try {
-          // Determine recommended difficulty based on performance
+          // Get user's actual target score
+          const targetScore = perf.user?.onboarding?.learningPreferences?.targetScore || 80;
+          
+          // Determine recommended difficulty based on performance relative to target
           let recommendedDifficulty = 'Medium';
-          if (perf.averageScore < 50) {
-            recommendedDifficulty = 'Easy';
-          } else if (perf.averageScore > 80 && perf.masteryLevel > 75) {
-            recommendedDifficulty = 'Hard';
+          if (perf.averageScore < targetScore - 20) {
+            recommendedDifficulty = 'Easy'; // Significantly below target
+          } else if (perf.averageScore >= targetScore && perf.masteryLevel > 75) {
+            recommendedDifficulty = 'Hard'; // At/above target with good mastery
           }
+          
+          // Pass target score to the reason generator
+          perf.targetScore = targetScore;
 
           // Find quizzes for this topic and difficulty
           const topicQuizzes = await this.quizModel.find({
@@ -1457,19 +1483,29 @@ export class QuizzesService {
   }
 
   /**
-   * Generate performance-based recommendation reason
+   * Generate performance-based recommendation reason with correct target-based logic
    */
   private generatePerformanceBasedReason(performanceData: any): string {
     const { averageScore, masteryLevel, topic, totalAttempts } = performanceData;
+    
+    // Get user's actual target score (default 80% but could be different)
+    const targetScore = performanceData.targetScore || 80;
+    const progressToTarget = Math.min(100, (averageScore / targetScore) * 100);
+    const scoreGap = Math.max(0, targetScore - averageScore);
 
-    if (averageScore < 50) {
-      return `Focus on ${topic.topicName} - this is a weak area where you're scoring ${averageScore}%. Building a strong foundation here will significantly improve your overall performance.`;
-    } else if (averageScore < 70) {
-      return `Strengthen your understanding of ${topic.topicName}. You're scoring ${averageScore}% but have potential to reach your target. Practice will help solidify these concepts.`;
-    } else if (masteryLevel < 60) {
-      return `Develop mastery in ${topic.topicName}. While your recent score is ${averageScore}%, consistent practice will help you achieve true mastery.`;
+    // CORRECT PRIORITY LOGIC: High priority for weak areas, low priority for strong areas
+    if (averageScore < targetScore - 20) {
+      // Significantly below target - HIGH PRIORITY
+      return `Practice ${topic.topicName} - You're ${scoreGap}% away from your ${targetScore}% target score. This topic needs intensive practice to close the gap. Focus on weak areas to accelerate your goal progress (currently ${Math.round(progressToTarget)}%).`;
+    } else if (averageScore < targetScore) {
+      // Below target but close - MEDIUM PRIORITY  
+      return `Practice ${topic.topicName} - You're ${scoreGap}% away from your ${targetScore}% target. This topic needs intensive practice to close the gap. Focus on weak areas to accelerate your goal progress (currently ${Math.round(progressToTarget)}%).`;
+    } else if (averageScore >= targetScore && averageScore < targetScore + 10) {
+      // At target - LOW PRIORITY
+      return `This is one of your strong areas. Challenge yourself with harder questions to excel beyond your ${targetScore}% target. Let's focus on consolidating your knowledge before advancing. Consider reviewing previous materials and taking practice quizzes before attempting new topics.`;
     } else {
-      return `Continue practicing ${topic.topicName} to maintain your ${averageScore}% performance and build on your strong foundation.`;
+      // Well above target - VERY LOW PRIORITY
+      return `This is one of your strong areas. Challenge yourself with harder questions to excel beyond your ${targetScore}% target. Let's focus on consolidating your knowledge before advancing. Consider reviewing previous materials and taking practice quizzes before attempting new topics.`;
     }
   }
 

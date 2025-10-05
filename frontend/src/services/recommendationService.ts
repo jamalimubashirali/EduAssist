@@ -3,7 +3,7 @@ import api, { handleApiResponse, handleApiError } from '@/lib/api'
 export interface Recommendation {
   id: string
   userId: string
-  type: 'quiz' | 'topic' | 'subject' | 'study_plan'
+  type: 'weak' | 'practice' | 'advanced' | 'quiz' | 'topic' | 'subject' | 'study_plan'
   title: string
   description: string
   reason: string
@@ -13,8 +13,11 @@ export interface Recommendation {
     quizId?: string
     topicId?: string
     subjectId?: string
-    difficulty?: 'beginner' | 'intermediate' | 'advanced'
+    topicName?: string
+    subjectName?: string
+    difficulty?: 'beginner' | 'intermediate' | 'advanced' | 'Easy' | 'Medium' | 'Hard'
     estimatedTime?: number
+    source?: string
   }
   status: 'pending' | 'accepted' | 'dismissed' | 'completed'
   createdAt: string

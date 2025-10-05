@@ -29,6 +29,10 @@ export default function Assessment() {
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [answers, setAnswers] = useState<Record<string, { answer: string; timeTaken: number }>>({});
   const [questionStartTime, setQuestionStartTime] = useState<number | null>(null);
+  
+  // Timer state - 30 minutes = 1800 seconds
+  const [timeLeft, setTimeLeft] = useState(1800);
+  const [assessmentStartTime, setAssessmentStartTime] = useState<number | null>(null);
 
   useEffect(() => {
     console.log('user:', user);
@@ -46,7 +50,8 @@ export default function Assessment() {
           if (convertedQuestions && convertedQuestions.length > 0 && convertedQuestions.every(q => q.id && typeof q.id === 'string')) {
             setQuestions(convertedQuestions);
             setCurrentQuestionIndex(0);
-            setQuestionStartTime(Date.now()); // <-- Fix: initialize timer when questions loaded
+            setQuestionStartTime(Date.now());
+            setAssessmentStartTime(Date.now()); // Start the assessment timer
           } else {
             setQuestions([]);
           }
@@ -63,6 +68,31 @@ export default function Assessment() {
     // Fix: set timer when question index changes
     setQuestionStartTime(Date.now());
   }, [currentQuestionIndex]);
+
+  // Timer countdown effect
+  useEffect(() => {
+    if (!assessmentStartTime || timeLeft <= 0) return;
+
+    const timer = setInterval(() => {
+      setTimeLeft(prev => {
+        if (prev <= 1) {
+          // Auto-submit when time runs out
+          handleSubmitAssessment();
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [assessmentStartTime, timeLeft]);
+
+  // Format time display (MM:SS)
+  const formatTime = (seconds: number) => {
+    const minutes = Math.floor(seconds / 60);
+    const remainingSeconds = seconds % 60;
+    return `${minutes.toString().padStart(2, '0')}:${remainingSeconds.toString().padStart(2, '0')}`;
+  };
 
   if (isLoadingQuestions) {
     return (
@@ -152,7 +182,14 @@ export default function Assessment() {
     }
   };
 
-  const subjectName = currentQuestion.subject?.subjectName || 'General';
+  // Get subject name, avoid showing 'General'
+  const getSubjectDisplay = () => {
+    const subjectName = currentQuestion.subject?.subjectName || currentQuestion.subject?.name;
+    if (!subjectName || subjectName.toLowerCase() === 'general') {
+      return null; // Don't show anything for General
+    }
+    return subjectName;
+  };
 
   return (
     <div className="flex flex-col items-center justify-center min-h-screen bg-gray-50 p-4">
@@ -161,13 +198,17 @@ export default function Assessment() {
           <CardHeader>
             <CardTitle className="text-2xl font-bold text-center">Onboarding Assessment</CardTitle>
             <div className="flex justify-between items-center mt-4">
-              <Badge variant="secondary" className="flex items-center gap-2">
+              <Badge 
+                variant="secondary" 
+                className={`flex items-center gap-2 ${timeLeft < 300 ? 'bg-red-100 text-red-800' : timeLeft < 600 ? 'bg-yellow-100 text-yellow-800' : ''}`}
+              >
                 <Clock className="h-4 w-4" />
-                <span>Time Limit: 30:00</span>
+                <span>Time Left: {formatTime(timeLeft)}</span>
               </Badge>
               <div>
-                <Badge variant="outline" className="mr-2">{subjectName}</Badge>
-                <Badge variant="outline">{currentQuestion.questionDifficulty}</Badge>
+                {getSubjectDisplay() && (
+                  <Badge variant="outline">{getSubjectDisplay()}</Badge>
+                )}
               </div>
             </div>
             <p className="text-sm text-gray-500 text-center mt-2">{`Question ${currentQuestionIndex + 1} of ${questions.length}`}</p>

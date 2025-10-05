@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { recommendationService } from '@/services/recommendationService';
-import { Recommendation, StudyPlan } from '@/types';
+import { Recommendation } from '@/services/recommendationService';
+import { StudyPlan } from '@/types';
 import { useUserStore } from '@/stores/useUserStore';
 import { toast } from 'sonner';
 

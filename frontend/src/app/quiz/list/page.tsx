@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import React, { useState, useEffect, useMemo } from 'react'
 import { motion } from 'framer-motion'
 import { useRouter } from 'next/navigation'
 import { useQuizzes } from '@/hooks/useQuizData'
@@ -19,7 +19,8 @@ import {
   Zap,
   Users,
   TrendingUp,
-  Award
+  Award,
+  X
 } from 'lucide-react'
 
 export default function QuizListPage() {
@@ -43,31 +44,69 @@ export default function QuizListPage() {
     limit: 30,
   })
 
-  // Filter and sort quizzes (client-side; server also filters by subject/difficulty)
-  const filteredQuizzes = (quizzes || [])
-    .filter(quiz => {
-      const matchesSearch = quiz.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                           quiz.subjectId.toLowerCase().includes(searchTerm.toLowerCase())
-      const matchesSubject = selectedSubject === 'all' || quiz.subjectId === selectedSubject
-      const matchesDifficulty = selectedDifficulty === 'all' || quiz.difficulty === selectedDifficulty
-      return matchesSearch && matchesSubject && matchesDifficulty
-    })
-    .sort((a, b) => {
-      switch (sortBy) {
-        case 'popular':
-          return (b as any).attemptCount - (a as any).attemptCount
-        case 'recent':
-          return (b as any).createdAt?.localeCompare((a as any).createdAt || '')
-        case 'difficulty':
-          const difficultyOrder = { Easy: 1, Medium: 2, Hard: 3 }
-          return difficultyOrder[a.difficulty as keyof typeof difficultyOrder] -
-                 difficultyOrder[b.difficulty as keyof typeof difficultyOrder]
-        default:
-          return 0
-      }
-    })
+  // Filter and sort quizzes with improved search and filtering
+  const filteredQuizzes = useMemo(() => {
+    if (!quizzes) return []
+    
+    return quizzes
+      .filter(quiz => {
+        // Enhanced search - search in title, subject, and description
+        const searchLower = searchTerm.toLowerCase()
+        const matchesSearch = !searchTerm || 
+          quiz.title.toLowerCase().includes(searchLower) ||
+          (quiz.subject || quiz.subjectId || '').toLowerCase().includes(searchLower) ||
+          (quiz.description || '').toLowerCase().includes(searchLower)
+        
+        // Subject filtering
+        const matchesSubject = selectedSubject === 'all' || 
+          quiz.subjectId === selectedSubject ||
+          quiz.subject === selectedSubject
+        
+        // Difficulty filtering - handle different formats
+        const quizDifficulty = quiz.difficulty?.toLowerCase()
+        const selectedDiff = selectedDifficulty.toLowerCase()
+        const matchesDifficulty = selectedDifficulty === 'all' || 
+          quizDifficulty === selectedDiff ||
+          (selectedDiff === 'easy' && quizDifficulty === 'beginner') ||
+          (selectedDiff === 'medium' && quizDifficulty === 'intermediate') ||
+          (selectedDiff === 'hard' && quizDifficulty === 'advanced')
+        
+        return matchesSearch && matchesSubject && matchesDifficulty
+      })
+      .sort((a, b) => {
+        switch (sortBy) {
+          case 'popular':
+            const aAttempts = (a as any).attemptCount || (a as any).attempts || 0
+            const bAttempts = (b as any).attemptCount || (b as any).attempts || 0
+            return bAttempts - aAttempts
+          case 'recent':
+            const aDate = (a as any).createdAt || (a as any).created_at || ''
+            const bDate = (b as any).createdAt || (b as any).created_at || ''
+            return bDate.localeCompare(aDate)
+          case 'difficulty':
+            const difficultyOrder = { 
+              beginner: 1, easy: 1,
+              intermediate: 2, medium: 2,
+              advanced: 3, hard: 3
+            }
+            const aDiff = difficultyOrder[a.difficulty?.toLowerCase() as keyof typeof difficultyOrder] || 1
+            const bDiff = difficultyOrder[b.difficulty?.toLowerCase() as keyof typeof difficultyOrder] || 1
+            return aDiff - bDiff
+          default:
+            return 0
+        }
+      })
+  }, [quizzes, searchTerm, selectedSubject, selectedDifficulty, sortBy])
 
-  const subjects = ['all', ...Array.from(new Set((quizzes || []).map(q => q.subjectId)))]
+  // Extract unique subjects and difficulties from quizzes
+  const subjects = useMemo(() => {
+    if (!quizzes) return ['all']
+    const uniqueSubjects = Array.from(new Set(
+      quizzes.map(q => q.subjectId || q.subject).filter(Boolean)
+    ))
+    return ['all', ...uniqueSubjects]
+  }, [quizzes])
+  
   const difficulties = ['all', 'Easy', 'Medium', 'Hard']
 
   const handleStartQuiz = (quizId: string) => {
@@ -75,15 +114,48 @@ export default function QuizListPage() {
   }
 
   const getDifficultyColor = (difficulty: string) => {
-    switch (difficulty) {
-      case 'Easy': return 'text-green-400 bg-green-400/10'
-      case 'Medium': return 'text-yellow-400 bg-yellow-400/10'
-      case 'Hard': return 'text-red-400 bg-red-400/10'
-      default: return 'text-gray-400 bg-gray-400/10'
+    const diff = difficulty?.toLowerCase()
+    switch (diff) {
+      case 'easy':
+      case 'beginner':
+        return 'text-green-400 bg-green-400/10 border border-green-400/20'
+      case 'medium':
+      case 'intermediate':
+        return 'text-yellow-400 bg-yellow-400/10 border border-yellow-400/20'
+      case 'hard':
+      case 'advanced':
+        return 'text-red-400 bg-red-400/10 border border-red-400/20'
+      default:
+        return 'text-gray-400 bg-gray-400/10 border border-gray-400/20'
+    }
+  }
+  
+  const formatDifficulty = (difficulty: string) => {
+    const diff = difficulty?.toLowerCase()
+    switch (diff) {
+      case 'beginner': return 'Easy'
+      case 'intermediate': return 'Medium'
+      case 'advanced': return 'Hard'
+      default: return difficulty?.charAt(0).toUpperCase() + difficulty?.slice(1) || 'Unknown'
     }
   }
 
-  console.log(filteredQuizzes);
+  // Debug logging
+  useEffect(() => {
+    console.log('🎯 [QUIZ_LIST] Quiz data loaded:', {
+      totalQuizzes: quizzes?.length || 0,
+      filteredQuizzes: filteredQuizzes.length,
+      searchTerm,
+      selectedSubject,
+      selectedDifficulty,
+      sortBy,
+      isLoading,
+      isError
+    })
+    if (quizzes?.length > 0) {
+      console.log('📋 [QUIZ_LIST] Sample quiz:', quizzes[0])
+    }
+  }, [quizzes, filteredQuizzes, searchTerm, selectedSubject, selectedDifficulty, sortBy, isLoading, isError])
 
   return (
     <GameLayout>
@@ -142,13 +214,41 @@ export default function QuizListPage() {
           </div>
         </motion.div>
 
-        {/* Search and Filters */}
+        {/* Loading and Error States */}
         {isLoading && (
-          <div className="game-card p-6 text-center text-gray-400">Loading quizzes...</div>
+          <motion.div
+            className="game-card p-8 text-center"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+          >
+            <div className="flex items-center justify-center gap-3 text-gray-400">
+              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-purple-500"></div>
+              <span className="text-lg">Loading quizzes...</span>
+            </div>
+          </motion.div>
         )}
+        
         {isError && (
-          <div className="game-card p-6 text-center text-red-400">Failed to load quizzes.</div>
+          <motion.div
+            className="game-card p-8 text-center"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+          >
+            <div className="text-red-400 mb-4">
+              <Trophy className="w-12 h-12 mx-auto mb-2 opacity-50" />
+              <h3 className="text-xl font-bold mb-2">Failed to load quizzes</h3>
+              <p className="text-gray-400">Please try refreshing the page</p>
+            </div>
+            <button
+              onClick={() => window.location.reload()}
+              className="px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
+            >
+              Refresh Page
+            </button>
+          </motion.div>
         )}
+
+        {/* Search and Filters */}
 
         <motion.div
           className="game-card p-6"
@@ -157,16 +257,24 @@ export default function QuizListPage() {
           transition={{ delay: 0.3, duration: 0.6 }}
         >
           <div className="flex flex-col md:flex-row gap-4">
-            {/* Search */}
+            {/* Enhanced Search */}
             <div className="flex-1 relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
               <input
                 type="text"
-                placeholder="Search quizzes..."
+                placeholder="Search by title, subject, or description..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full bg-gray-700 border border-gray-600 rounded-lg pl-10 pr-4 py-3 text-white placeholder-gray-400 focus:border-purple-500 focus:outline-none"
+                className="w-full bg-gray-700 border border-gray-600 rounded-lg pl-10 pr-12 py-3 text-white placeholder-gray-400 focus:border-purple-500 focus:outline-none transition-colors"
               />
+              {searchTerm && (
+                <button
+                  onClick={() => setSearchTerm('')}
+                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-white transition-colors"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              )}
             </div>
 
             {/* Filters */}
@@ -201,7 +309,7 @@ export default function QuizListPage() {
                 className="bg-gray-700 border border-gray-600 rounded-lg px-4 py-3 text-white focus:border-purple-500 focus:outline-none"
               >
                 <option value="popular">Most Popular</option>
-                <option value="recent">Highest Rated</option>
+                <option value="recent">Most Recent</option>
                 <option value="difficulty">By Difficulty</option>
               </select>
             </div>
@@ -227,37 +335,40 @@ export default function QuizListPage() {
               {/* Quiz Badge */}
               <div className="text-center mb-4">
                 <span className={`px-3 py-1 rounded-full text-xs font-medium ${getDifficultyColor(quiz.difficulty)}`}>
-                  {quiz.difficulty.charAt(0).toUpperCase() + quiz.difficulty.slice(1)}
+                  {formatDifficulty(quiz.difficulty)}
                 </span>
               </div>
 
               {/* Quiz Info */}
               <div className="space-y-3">
-                <h3 className="text-xl font-bold text-white group-hover:text-purple-400 transition-colors">
+                <h3 className="text-xl font-bold text-white group-hover:text-purple-400 transition-colors line-clamp-2">
                   {quiz.title}
                 </h3>
-                <p className="text-gray-400 text-sm">{quiz.subjectId}</p>
+                <p className="text-gray-400 text-sm">{quiz.subject || quiz.subjectId}</p>
+                {quiz.description && (
+                  <p className="text-gray-500 text-xs mt-1 line-clamp-2">{quiz.description}</p>
+                )}
 
                 {/* Stats */}
                 <div className="flex justify-between text-sm text-gray-400">
                   <div className="flex items-center gap-1">
                     <Target className="w-4 h-4" />
-                    {quiz.questions?.length || 0} questions
+                    {quiz.questions?.length || quiz.questionCount || 0} questions
                   </div>
                   <div className="flex items-center gap-1">
                     <Clock className="w-4 h-4" />
-                    {quiz.timeLimit || 0} sec
+                    {quiz.timeLimit ? `${Math.floor(quiz.timeLimit / 60)}m` : 'No limit'}
                   </div>
                 </div>
 
                 <div className="flex justify-between text-sm">
                   <div className="flex items-center gap-1 text-yellow-400">
                     <Star className="w-4 h-4" />
-                    {(quiz as any).averageScore ?? '-'}
+                    {(quiz as any).averageScore ? `${(quiz as any).averageScore}%` : 'New'}
                   </div>
                   <div className="flex items-center gap-1 text-green-400">
                     <Zap className="w-4 h-4" />
-                    {quiz.xpReward} XP
+                    {quiz.xpReward || 10} XP
                   </div>
                 </div>
 
@@ -272,16 +383,45 @@ export default function QuizListPage() {
         </motion.div>
 
         {/* No Results */}
-        {filteredQuizzes.length === 0 && (
+        {!isLoading && !isError && filteredQuizzes.length === 0 && (
           <motion.div
-            className="text-center py-12"
+            className="game-card p-12 text-center"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.3 }}
+          >
+            <Search className="w-16 h-16 text-gray-600 mx-auto mb-4" />
+            <h3 className="text-xl font-bold text-white mb-2">No quizzes found</h3>
+            <p className="text-gray-400 mb-4">
+              {searchTerm || selectedSubject !== 'all' || selectedDifficulty !== 'all'
+                ? 'Try adjusting your search or filters'
+                : 'No quizzes available at the moment'
+              }
+            </p>
+            {(searchTerm || selectedSubject !== 'all' || selectedDifficulty !== 'all') && (
+              <button
+                onClick={() => {
+                  setSearchTerm('')
+                  setSelectedSubject('all')
+                  setSelectedDifficulty('all')
+                }}
+                className="px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
+              >
+                Clear Filters
+              </button>
+            )}
+          </motion.div>
+        )}
+
+        {/* Results Count */}
+        {!isLoading && !isError && filteredQuizzes.length > 0 && (
+          <motion.div
+            className="text-center text-gray-400 text-sm"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            transition={{ delay: 0.5 }}
           >
-            <Brain className="w-16 h-16 text-gray-600 mx-auto mb-4" />
-            <h3 className="text-xl font-bold text-white mb-2">No quizzes found</h3>
-            <p className="text-gray-400">Try adjusting your search or filters</p>
+            Showing {filteredQuizzes.length} of {quizzes?.length || 0} quizzes
+            {searchTerm && ` for "${searchTerm}"`}
           </motion.div>
         )}
       </div>
