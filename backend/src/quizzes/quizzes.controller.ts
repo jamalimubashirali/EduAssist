@@ -790,13 +790,6 @@ export class QuizzesController {
       const xpReward = this.calculateXpReward(backendDifficulty, selectedQuestions.length);
       console.log(`🏆 [SAVE] Calculated XP reward: ${xpReward} for difficulty ${backendDifficulty} and ${selectedQuestions.length} questions`);
 
-      // Debug the enum value
-      console.log('🔍 [DEBUG] QuizType.PRACTICE value:', QuizType.PRACTICE);
-      console.log('🔍 [DEBUG] QuizType enum:', QuizType);
-      console.log('🔍 [DEBUG] Object.values(QuizType):', Object.values(QuizType));
-
-      console.log('QuizType : ' , QuizType.PRACTICE);
-
       const createQuizDto = {
         title: `Practice Quiz - Topic ${request.topicId}`,
         topicId: request.topicId,
