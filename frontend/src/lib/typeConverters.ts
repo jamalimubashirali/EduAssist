@@ -81,15 +81,28 @@ export function convertBackendQuestion(backendQuestion: any): Question {
 
 // Fix: use subjectId instead of subject in Quiz conversion
 export function convertBackendQuiz(backendQuiz: any): Quiz {
-
+  console.log('🔄 [CONVERTER] Converting backend quiz:', {
+    id: backendQuiz.id || backendQuiz._id,
+    title: backendQuiz.title,
+    questionCount: backendQuiz.questionCount,
+    questionsLength: backendQuiz.questions?.length || 0,
+    questionIdsLength: backendQuiz.questionIds?.length || 0
+  });
 
   // Handle both 'questions' and 'questionIds' fields from backend
   const questionsArray = backendQuiz.questions || backendQuiz.questionIds || []
-
+  console.log('📝 [CONVERTER] Questions array length:', questionsArray.length);
+  console.log('📋 [CONVERTER] First question sample:', questionsArray[0] ? {
+    id: questionsArray[0]._id || questionsArray[0].id,
+    text: questionsArray[0].questionText?.substring(0, 50) + '...',
+    hasOptions: !!questionsArray[0].answerOptions
+  } : 'No questions');
 
   const questions = questionsArray.length > 0
     ? questionsArray.map((q: any) => convertBackendQuestion(q))
     : [];
+
+  console.log('✅ [CONVERTER] Converted questions length:', questions.length);
 
 
 
@@ -121,6 +134,14 @@ export function convertBackendQuiz(backendQuiz: any): Quiz {
     rating: backendQuiz.rating ?? 0,
     description: backendQuiz.description ?? '',
   };
+
+  console.log('🎯 [CONVERTER] Final converted quiz:', {
+    id: convertedQuiz.id,
+    title: convertedQuiz.title,
+    questionsLength: convertedQuiz.questions.length,
+    difficulty: convertedQuiz.difficulty,
+    xpReward: convertedQuiz.xpReward
+  });
 
   return convertedQuiz;
 }

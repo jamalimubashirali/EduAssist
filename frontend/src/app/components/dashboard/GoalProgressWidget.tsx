@@ -552,8 +552,8 @@ export function GoalProgressWidget({ userId }: { userId?: string }) {
                     <div>
                       <strong>Goal:</strong> Improve your average from{" "}
                       {goalProgress.currentAverageScore}% to{" "}
-                      {goalProgress.targetScore}% (need {goalProgress.scoreGap}%
-                      improvement)
+                      {goalProgress.targetScore}% (need{" "}
+                      {Math.floor(goalProgress.scoreGap)}% improvement)
                     </div>
                   </div>
                 )}

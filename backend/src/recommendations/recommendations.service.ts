@@ -780,18 +780,4 @@ export class RecommendationsService {
       factors
     };
   }
-      difficulty,
-      priority: Math.min(priority, 100),
-      factors,
-      goalContext: {
-        targetScore,
-        currentProgress: progressPercentage,
-        scoreGap,
-        isWeakArea: isInWeakArea,
-        hasRecentlyImproved: hasRecentlyImproved,
-        weakAreasCount: weakAreas.length,
-        strongAreasCount: strongAreas.length
-      }
-    };
-  }
 }

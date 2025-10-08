@@ -765,9 +765,14 @@ export class QuizzesService {
       const needed = totalNeeded - selectedQuestions.length;
       console.log(`🔄 [FALLBACK] Need ${needed} more questions, searching for any active questions for topic...`);
 
+      // Get already selected question IDs to avoid duplicates
+      const selectedIds = selectedQuestions.map(q => q._id.toString());
+      const excludeFilter = selectedIds.length > 0 ? { _id: { $nin: selectedIds.map(id => new Types.ObjectId(id)) } } : {};
+
       const fallbackQuestions = await this.questionModel.find({
         topicId: new Types.ObjectId(strategy.topicId),
-        isActive: true
+        isActive: true,
+        ...excludeFilter
       }).limit(needed).exec();
 
       console.log(`📝 [FALLBACK] Found ${fallbackQuestions.length} fallback questions for topic`);
@@ -799,6 +804,28 @@ export class QuizzesService {
         console.log(`📝 [SUBJECT-FALLBACK] Found ${subjectFallbackQuestions.length} questions across subject`);
         selectedQuestions.push(...subjectFallbackQuestions);
         console.log(`📊 [SUBJECT-FALLBACK] Total questions after subject fallback: ${selectedQuestions.length}`);
+      }
+    }
+
+    // Final fallback: if still no questions, try without isActive filter
+    if (selectedQuestions.length === 0) {
+      console.log(`🚨 [EMERGENCY-FALLBACK] No questions found with isActive filter, trying without it...`);
+      
+      const emergencyQuestions = await this.questionModel.find({
+        topicId: new Types.ObjectId(strategy.topicId)
+      }).limit(totalNeeded).exec();
+
+      console.log(`📝 [EMERGENCY-FALLBACK] Found ${emergencyQuestions.length} questions without isActive filter`);
+      
+      if (emergencyQuestions.length > 0) {
+        console.log(`🔍 [EMERGENCY-FALLBACK] Emergency questions:`, emergencyQuestions.map(q => ({
+          id: q._id,
+          difficulty: q.questionDifficulty,
+          isActive: q.isActive,
+          text: q.questionText?.substring(0, 50) + '...'
+        })));
+        
+        selectedQuestions.push(...emergencyQuestions);
       }
     }
 
@@ -858,39 +885,69 @@ export class QuizzesService {
     console.log(`   - Excluding: ${excludeIds.length} questions`);
 
     try {
-      const filter: any = {
-        topicId: new Types.ObjectId(topicId),
-        questionDifficulty: difficulty
-      };
+      // Try multiple difficulty formats to handle potential mismatches
+      const difficultyVariants = [
+        difficulty, // Original: 'Easy', 'Medium', 'Hard'
+        difficulty.toUpperCase(), // 'EASY', 'MEDIUM', 'HARD'
+        difficulty.toLowerCase(), // 'easy', 'medium', 'hard'
+      ];
 
-      if (excludeIds.length > 0) {
-        filter._id = { $nin: excludeIds.map(id => new Types.ObjectId(id)) };
+      let questions: Question[] = [];
+
+      for (const diffVariant of difficultyVariants) {
+        const filter: any = {
+          topicId: new Types.ObjectId(topicId),
+          questionDifficulty: diffVariant,
+          isActive: true
+        };
+
+        if (excludeIds.length > 0) {
+          filter._id = { $nin: excludeIds.map(id => new Types.ObjectId(id)) };
+        }
+
+        console.log(`🔎 [DIFFICULTY] Trying MongoDB filter:`, JSON.stringify(filter, null, 2));
+
+        questions = await this.questionModel
+          .find(filter)
+          .limit(limit)
+          .exec();
+
+        console.log(`📝 [DIFFICULTY] Found ${questions.length} questions for difficulty variant: ${diffVariant}`);
+
+        if (questions.length > 0) {
+          break; // Found questions with this variant, stop trying
+        }
       }
 
-      console.log(`🔎 [DIFFICULTY] MongoDB filter:`, JSON.stringify(filter, null, 2));
+      // If still no questions found, let's debug what's in the database
+      if (questions.length === 0) {
+        console.log(`⚠️ [DIFFICULTY] No questions found for any difficulty variant. Debugging...`);
+        
+        // Let's also check what questions exist without the difficulty filter
+        const allQuestionsForTopic = await this.questionModel.countDocuments({
+          topicId: new Types.ObjectId(topicId),
+          isActive: true
+        });
+        console.log(`📊 [DIFFICULTY] Total active questions for topic ${topicId}: ${allQuestionsForTopic}`);
 
-      const questions = await this.questionModel
-        .find(filter)
-        .limit(limit)
-        .exec();
+        // Let's see what difficulty values actually exist in the database
+        const existingQuestions = await this.questionModel.find({
+          topicId: new Types.ObjectId(topicId),
+          isActive: true
+        }).select('questionDifficulty questionText').limit(10).exec();
 
-      console.log(`📝 [DIFFICULTY] Found ${questions.length} questions for difficulty ${difficulty}`);
+        console.log(`🔍 [DIFFICULTY] Sample questions in database:`, existingQuestions.map(q => ({
+          difficulty: q.questionDifficulty,
+          text: q.questionText?.substring(0, 50) + '...'
+        })));
 
-      // Let's also check what questions exist without the difficulty filter
-      const allQuestionsForTopic = await this.questionModel.countDocuments({
-        topicId: new Types.ObjectId(topicId)
-      });
-      console.log(`📊 [DIFFICULTY] Total questions for topic ${topicId}: ${allQuestionsForTopic}`);
-
-      // Let's see what difficulty values actually exist in the database
-      const existingQuestions = await this.questionModel.find({
-        topicId: new Types.ObjectId(topicId)
-      }).select('questionDifficulty questionText').limit(5).exec();
-
-      console.log(`🔍 [DIFFICULTY] Sample questions in database:`, existingQuestions.map(q => ({
-        difficulty: q.questionDifficulty,
-        text: q.questionText?.substring(0, 50) + '...'
-      })));
+        // Get unique difficulty values for this topic
+        const uniqueDifficulties = await this.questionModel.distinct('questionDifficulty', {
+          topicId: new Types.ObjectId(topicId),
+          isActive: true
+        });
+        console.log(`🎯 [DIFFICULTY] Unique difficulty values in database for topic:`, uniqueDifficulties);
+      }
 
       return questions;
     } catch (error) {
@@ -1090,6 +1147,102 @@ export class QuizzesService {
     } catch (error) {
       console.error('Error counting questions for topic:', error);
       return 0;
+    }
+  }
+
+  /**
+   * Get sample questions for debugging
+   */
+  async getSampleQuestionsForTopic(topicId: string, limit: number = 5): Promise<Question[]> {
+    try {
+      return await this.questionModel.find({
+        topicId: new Types.ObjectId(topicId),
+        isActive: true
+      }).limit(limit).exec();
+    } catch (error) {
+      console.error('Error getting sample questions for topic:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Get questions for topic using the same approach as the working method
+   */
+  async getQuestionsForTopicSimple(
+    topicId: string,
+    difficulty: string,
+    questionCount: number
+  ): Promise<Question[]> {
+    try {
+      console.log(`🔍 [SIMPLE] Getting questions for topic: ${topicId}, difficulty: ${difficulty}, count: ${questionCount}`);
+      
+      // First, let's see what questions exist for this topic (any difficulty)
+      const allTopicQuestions = await this.questionModel.find({
+        topicId: new Types.ObjectId(topicId),
+        isActive: true
+      }).limit(10).exec();
+      
+      console.log(`📊 [SIMPLE] Total questions for topic: ${allTopicQuestions.length}`);
+      console.log(`🔍 [SIMPLE] Sample questions:`, allTopicQuestions.map(q => ({
+        id: q._id,
+        difficulty: q.questionDifficulty,
+        text: q.questionText?.substring(0, 50) + '...'
+      })));
+
+      // Try different difficulty formats
+      const formats = [
+        difficulty.charAt(0).toUpperCase() + difficulty.slice(1).toLowerCase(), // Title case: Easy, Medium, Hard
+        difficulty.toUpperCase(), // EASY, MEDIUM, HARD  
+        difficulty.toLowerCase(), // easy, medium, hard
+        difficulty // original format
+      ];
+
+      for (const format of formats) {
+        console.log(`🔄 [SIMPLE] Trying difficulty format: ${format}`);
+        
+        const questions = await this.questionModel
+          .find({
+            topicId: new Types.ObjectId(topicId),
+            questionDifficulty: format,
+            isActive: true
+          })
+          .limit(questionCount * 2) // Get more than needed for randomization
+          .exec();
+        
+        console.log(`📝 [SIMPLE] Found ${questions.length} questions with format: ${format}`);
+        
+        if (questions.length > 0) {
+          // Randomly select the requested number of questions
+          const shuffledQuestions = questions.sort(() => Math.random() - 0.5);
+          const selected = shuffledQuestions.slice(0, questionCount);
+          console.log(`✅ [SIMPLE] Returning ${selected.length} questions`);
+          return selected;
+        }
+      }
+
+      // If no questions found with any difficulty format, try without difficulty filter
+      console.log(`⚠️ [SIMPLE] No questions found with difficulty filter, trying without difficulty...`);
+      const anyDifficultyQuestions = await this.questionModel
+        .find({
+          topicId: new Types.ObjectId(topicId),
+          isActive: true
+        })
+        .limit(questionCount * 2)
+        .exec();
+
+      if (anyDifficultyQuestions.length > 0) {
+        console.log(`📝 [SIMPLE] Found ${anyDifficultyQuestions.length} questions without difficulty filter`);
+        const shuffled = anyDifficultyQuestions.sort(() => Math.random() - 0.5);
+        const selected = shuffled.slice(0, questionCount);
+        console.log(`✅ [SIMPLE] Returning ${selected.length} questions (any difficulty)`);
+        return selected;
+      }
+
+      console.log(`❌ [SIMPLE] No questions found for topic ${topicId}`);
+      return [];
+    } catch (error) {
+      console.error('Error getting questions for topic (simple):', error);
+      return [];
     }
   }
 
