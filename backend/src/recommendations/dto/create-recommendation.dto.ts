@@ -26,13 +26,14 @@ export class CreateRecommendationDto {
 
   @IsNotEmpty()
   @IsEnum(DifficultyLevel, {
-    message: 'suggestedDifficulty must be one of: Easy, Medium, Hard'
+    message: 'suggestedDifficulty must be one of: Easy, Medium, Hard',
   })
   suggestedDifficulty: DifficultyLevel;
 
   @IsOptional()
   @IsEnum(RecommendationStatus, {
-    message: 'recommendationStatus must be one of: Pending, Accepted, Rejected, Completed'
+    message:
+      'recommendationStatus must be one of: Pending, Accepted, Rejected, Completed',
   })
   recommendationStatus?: RecommendationStatus = RecommendationStatus.PENDING;
 }

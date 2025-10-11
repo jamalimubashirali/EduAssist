@@ -9,12 +9,14 @@ import { AccessTokenGuard } from 'common/guards/access-token.guard';
 import { RefreshTokenGuard } from 'common/guards/refresh-token.guard';
 
 @Module({
-  imports: [
-    UsersModule,
-    PassportModule,
-    JwtModule.register({}),
+  imports: [UsersModule, PassportModule, JwtModule.register({})],
+  providers: [
+    AuthService,
+    AccessTokenStrategy,
+    RefreshTokenStrategy,
+    AccessTokenGuard,
+    RefreshTokenGuard,
   ],
-  providers: [AuthService, AccessTokenStrategy, RefreshTokenStrategy , AccessTokenGuard , RefreshTokenGuard],
   controllers: [AuthController],
 })
 export class AuthModule {}

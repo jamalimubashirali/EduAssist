@@ -15,10 +15,10 @@ import { User, UserSchema } from '../users/schema/user.schema';
       { name: Topic.name, schema: TopicSchema },
       { name: User.name, schema: UserSchema },
     ]),
-    RecommendationsModule
+    RecommendationsModule,
   ],
   controllers: [AttemptsController],
   providers: [AttemptsService],
-  exports: [AttemptsService]
+  exports: [AttemptsService],
 })
 export class AttemptsModule {}

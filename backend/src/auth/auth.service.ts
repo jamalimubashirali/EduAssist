@@ -18,7 +18,9 @@ export class AuthService {
     private usersService: UsersService,
     private jwtService: JwtService,
   ) {}
-  async register(createUserDto: CreateUserDto): Promise<{ message: string; user: any , tokens : Tokens }> {
+  async register(
+    createUserDto: CreateUserDto,
+  ): Promise<{ message: string; user: any; tokens: Tokens }> {
     const presentUser: User | null = await this.usersService.findByEmail(
       createUserDto?.email,
     );
@@ -31,13 +33,16 @@ export class AuthService {
     }
     const newTokens: Tokens = await this.generateNewTokens({
       userId: newUser._id.toString(),
-      email: newUser.email
+      email: newUser.email,
     });
-    
-    await this.usersService.updateRefreshToken(newUser._id.toString(), newTokens.refresh_token);
+
+    await this.usersService.updateRefreshToken(
+      newUser._id.toString(),
+      newTokens.refresh_token,
+    );
     return {
       message: 'User Created Successfully',
-      tokens : newTokens,
+      tokens: newTokens,
       user: {
         id: newUser._id.toString(),
         email: newUser.email,
@@ -51,15 +56,15 @@ export class AuthService {
         leaderboardScore: newUser.leaderboardScore || 0,
         isActive: true,
         createdAt: new Date().toISOString(),
-        lastLoginAt: new Date().toISOString()
-      }
+        lastLoginAt: new Date().toISOString(),
+      },
     };
   }
 
   private async validateUser(email: string, pass: string): Promise<User> {
     const user = await this.usersService.findByEmail(email);
     if (!user) throw new UnauthorizedException('Invalid Email');
-    const isMatch = await bcrypt.compare(pass , user?.password);
+    const isMatch = await bcrypt.compare(pass, user?.password);
     if (!isMatch) throw new UnauthorizedException('Invalid Password');
     return user;
   }
@@ -70,15 +75,24 @@ export class AuthService {
   }> {
     const user = await this.validateUser(loginDto.email, loginDto.password);
 
-    if (user.onboarding && user.onboarding.status === OnboardingStatus.IN_PROGRESS) {
+    if (
+      user.onboarding &&
+      user.onboarding.status === OnboardingStatus.IN_PROGRESS
+    ) {
       const payload = {
         sub: user._id.toString(),
         username: user.name,
         onboardingStep: user.onboarding.step,
       };
-      const tokens = await this.generateNewTokens({ userId: user._id.toString(), email: user.email });
-      await this.usersService.updateRefreshToken(user._id.toString(), tokens.refresh_token);
-      
+      const tokens = await this.generateNewTokens({
+        userId: user._id.toString(),
+        email: user.email,
+      });
+      await this.usersService.updateRefreshToken(
+        user._id.toString(),
+        tokens.refresh_token,
+      );
+
       return {
         tokens,
         message: 'Onboarding in progress. Please resume.',
@@ -88,14 +102,17 @@ export class AuthService {
 
     const newTokens: Tokens = await this.generateNewTokens({
       userId: user._id.toString(),
-      email: user.email
+      email: user.email,
     });
-    
-    await this.usersService.updateRefreshToken(user._id.toString(), newTokens.refresh_token);
-    
+
+    await this.usersService.updateRefreshToken(
+      user._id.toString(),
+      newTokens.refresh_token,
+    );
+
     return {
       tokens: newTokens,
-      message: "Login Successful",
+      message: 'Login Successful',
       user: {
         id: user._id.toString(),
         email: user.email,
@@ -109,45 +126,47 @@ export class AuthService {
         xp_points: user.xp_points || 0,
         leaderboardScore: user.leaderboardScore || 0,
         isActive: true,
-        createdAt: user.createdAt ? user.createdAt.toISOString() : new Date().toISOString(),
-        lastLoginAt: new Date().toISOString()
-      }
-    }
+        createdAt: user.createdAt
+          ? user.createdAt.toISOString()
+          : new Date().toISOString(),
+        lastLoginAt: new Date().toISOString(),
+      },
+    };
   }
 
   async logout(userId: string): Promise<{ message: string }> {
     // To "logout", we clear the stored refresh token.
-    await this.usersService.updateRefreshToken(userId, "");
+    await this.usersService.updateRefreshToken(userId, '');
     return { message: 'Logged out successfully' };
   }
 
-  private async generateNewTokens(tokenData : TokenData) : Promise<Tokens> {
-    const [access_token , refresh_token] = await Promise.all([
+  private async generateNewTokens(tokenData: TokenData): Promise<Tokens> {
+    const [access_token, refresh_token] = await Promise.all([
       this.jwtService.signAsync(
         {
-          sub : tokenData?.userId,
-          email : tokenData?.email
-        }, 
+          sub: tokenData?.userId,
+          email: tokenData?.email,
+        },
         {
-          secret : process.env.JWT_ACCESS_TOKEN_SECRET,
-          expiresIn : 60 * 15
+          secret: process.env.JWT_ACCESS_TOKEN_SECRET,
+          expiresIn: 60 * 15,
         },
       ),
       this.jwtService.signAsync(
         {
-          sub : tokenData?.userId,
-          email : tokenData?.email,
-        }, 
+          sub: tokenData?.userId,
+          email: tokenData?.email,
+        },
         {
-          secret : process.env.JWT_REFRESH_TOKEN_SECRET,
-          expiresIn : 60 * 60 * 24 * 7
-        }
-      )
+          secret: process.env.JWT_REFRESH_TOKEN_SECRET,
+          expiresIn: 60 * 60 * 24 * 7,
+        },
+      ),
     ]);
     return {
-      access_token : access_token,
-      refresh_token : refresh_token
-    } 
+      access_token: access_token,
+      refresh_token: refresh_token,
+    };
   }
 
   private getOnboardingDataForStep(user: User, step: string) {
@@ -175,25 +194,29 @@ export class AuthService {
   async refreshTokens(refreshToken: string): Promise<Tokens> {
     const user = await this.usersService.findByRefreshToken(refreshToken);
 
-    if(!user){
+    if (!user) {
       throw new UnauthorizedException('Invalid Refresh Token');
     }
 
     const tokens = await this.generateNewTokens({
-      userId: user!._id.toString(),
-      email: user!.email,
+      userId: user._id.toString(),
+      email: user.email,
     });
 
-    await this.usersService.updateRefreshToken(user!._id.toString(), tokens.refresh_token);
+    await this.usersService.updateRefreshToken(
+      user._id.toString(),
+      tokens.refresh_token,
+    );
 
     return tokens;
   }
 
   verifyToken(token: string, type: 'access' | 'refresh'): any {
-    const secret = type === 'access' 
-      ? process.env.JWT_ACCESS_TOKEN_SECRET 
-      : process.env.JWT_REFRESH_TOKEN_SECRET;
-    
+    const secret =
+      type === 'access'
+        ? process.env.JWT_ACCESS_TOKEN_SECRET
+        : process.env.JWT_REFRESH_TOKEN_SECRET;
+
     return this.jwtService.verify(token, { secret });
   }
 
@@ -205,4 +228,3 @@ export class AuthService {
     return await this.usersService.findByRefreshToken(refreshToken);
   }
 }
-

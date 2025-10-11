@@ -98,8 +98,10 @@ export class SubjectsService {
 
     return true;
   }
-  
-  async getSubjectStats(id: string): Promise<{ subjectStats: SubjectStats; message: string }> {
+
+  async getSubjectStats(
+    id: string,
+  ): Promise<{ subjectStats: SubjectStats; message: string }> {
     if (!Types.ObjectId.isValid(id)) {
       throw new NotFoundException('Invalid subject ID format');
     }
@@ -108,31 +110,31 @@ export class SubjectsService {
     // Implementation depends on your specific requirements
     const subjectStats = await this.subjectModel.aggregate([
       {
-        $match : { _id: new Types.ObjectId(id) },
+        $match: { _id: new Types.ObjectId(id) },
       },
       {
-          $lookup: {
-            from: 'topics',
-            localField: '_id',
-            foreignField: 'subjectId',
-            as: 'topics'
-          }
+        $lookup: {
+          from: 'topics',
+          localField: '_id',
+          foreignField: 'subjectId',
+          as: 'topics',
+        },
       },
       {
         $lookup: {
           from: 'questions',
           localField: '_id',
           foreignField: 'subjectId',
-          as: 'questions'
-        }
+          as: 'questions',
+        },
       },
       {
         $lookup: {
           from: 'quizzes',
           localField: '_id',
           foreignField: 'subjectId',
-          as: 'quizzes'
-        }
+          as: 'quizzes',
+        },
       },
       {
         $project: {
@@ -147,7 +149,10 @@ export class SubjectsService {
 
     return {
       subjectStats: subjectStats.length > 0 ? subjectStats[0] : null,
-      message: subjectStats.length > 0 ? 'Subject stats retrieved successfully' : 'No stats found for this subject',
+      message:
+        subjectStats.length > 0
+          ? 'Subject stats retrieved successfully'
+          : 'No stats found for this subject',
     };
   }
 
@@ -156,11 +161,13 @@ export class SubjectsService {
       return [];
     }
 
-    return await this.subjectModel.find({
-      $or: [
-        { subjectName: { $regex: query, $options: 'i' } },
-        { subjectDescription: { $regex: query, $options: 'i' } }
-      ]
-    }).exec();
+    return await this.subjectModel
+      .find({
+        $or: [
+          { subjectName: { $regex: query, $options: 'i' } },
+          { subjectDescription: { $regex: query, $options: 'i' } },
+        ],
+      })
+      .exec();
   }
 }

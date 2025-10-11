@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { Recommendation } from './schema/recommendations.schema';
@@ -11,12 +15,15 @@ import { User } from '../users/schema/user.schema';
 @Injectable()
 export class RecommendationsService {
   constructor(
-    @InjectModel(Recommendation.name) private recommendationModel: Model<Recommendation>,
+    @InjectModel(Recommendation.name)
+    private recommendationModel: Model<Recommendation>,
     @InjectModel(Quiz.name) private quizModel: Model<Quiz>,
     @InjectModel(User.name) private userModel: Model<User>,
   ) {}
 
-  async create(createRecommendationDto: CreateRecommendationDto): Promise<Recommendation | null> {
+  async create(
+    createRecommendationDto: CreateRecommendationDto,
+  ): Promise<Recommendation | null> {
     try {
       // Validate ObjectId formats
       if (!Types.ObjectId.isValid(createRecommendationDto.userId)) {
@@ -40,7 +47,9 @@ export class RecommendationsService {
         attemptId: new Types.ObjectId(createRecommendationDto.attemptId),
       };
 
-      const newRecommendation = new this.recommendationModel(recommendationData);
+      const newRecommendation = new this.recommendationModel(
+        recommendationData,
+      );
       const savedRecommendation = await newRecommendation.save();
 
       return await this.recommendationModel
@@ -54,7 +63,9 @@ export class RecommendationsService {
       if (error instanceof BadRequestException) {
         throw error;
       }
-      throw new BadRequestException(`Failed to create recommendation: ${error.message}`);
+      throw new BadRequestException(
+        `Failed to create recommendation: ${error.message}`,
+      );
     }
   }
 
@@ -81,7 +92,7 @@ export class RecommendationsService {
       .populate('topicId', 'topicName')
       .populate('attemptId', 'score timeTaken')
       .exec();
-      
+
     if (!recommendation) {
       throw new NotFoundException('Recommendation not found');
     }
@@ -91,7 +102,8 @@ export class RecommendationsService {
   async findByUser(userId: string): Promise<Recommendation[]> {
     if (!Types.ObjectId.isValid(userId)) {
       throw new NotFoundException('Invalid user ID format');
-    }    return await this.recommendationModel
+    }
+    return await this.recommendationModel
       .find({ userId: new Types.ObjectId(userId) })
       .populate('subjectId', 'subjectName')
       .populate('topicId', 'topicName')
@@ -101,15 +113,18 @@ export class RecommendationsService {
       .exec();
   }
 
-  async findByUserAndStatus(userId: string, status: string): Promise<Recommendation[]> {
+  async findByUserAndStatus(
+    userId: string,
+    status: string,
+  ): Promise<Recommendation[]> {
     if (!Types.ObjectId.isValid(userId)) {
       throw new NotFoundException('Invalid user ID format');
     }
 
     return await this.recommendationModel
-      .find({ 
-        userId: new Types.ObjectId(userId), 
-        recommendationStatus: status 
+      .find({
+        userId: new Types.ObjectId(userId),
+        recommendationStatus: status,
       })
       .populate('subjectId', 'subjectName')
       .populate('topicId', 'topicName')
@@ -156,24 +171,28 @@ export class RecommendationsService {
     subjectId: string,
     topicId: string | null,
     attemptScore: number,
-    averageScore: number
+    averageScore: number,
   ): Promise<Recommendation | null> {
     try {
       // Get user's onboarding data for personalized recommendations
       const userOnboardingData = await this.getUserOnboardingData(userId);
-      
+
       let recommendationReason = '';
       let recommendationTitle = '';
       let suggestedDifficulty: DifficultyLevel = DifficultyLevel.MEDIUM;
-      let priority = this.calculateAttemptPriority({ attemptScore, averageScore });
-      let urgency = this.calculateUrgency({ createdAt: new Date() } as any);
-
-      // Enhanced recommendation logic based on performance analysis and onboarding data
-      const personalizedRecommendation = this.generatePersonalizedRecommendation(
+      let priority = this.calculateAttemptPriority({
         attemptScore,
         averageScore,
-        userOnboardingData
-      );
+      });
+      const urgency = this.calculateUrgency({ createdAt: new Date() } as any);
+
+      // Enhanced recommendation logic based on performance analysis and onboarding data
+      const personalizedRecommendation =
+        this.generatePersonalizedRecommendation(
+          attemptScore,
+          averageScore,
+          userOnboardingData,
+        );
 
       recommendationTitle = personalizedRecommendation.title;
       recommendationReason = personalizedRecommendation.reason;
@@ -183,14 +202,16 @@ export class RecommendationsService {
       // Adjust based on performance trend
       const performanceTrend = attemptScore - averageScore;
       if (performanceTrend > 15) {
-        recommendationReason += ' Your performance is significantly improving - excellent progress!';
+        recommendationReason +=
+          ' Your performance is significantly improving - excellent progress!';
         if (suggestedDifficulty === DifficultyLevel.EASY) {
           suggestedDifficulty = DifficultyLevel.MEDIUM;
         } else if (suggestedDifficulty === DifficultyLevel.MEDIUM) {
           suggestedDifficulty = DifficultyLevel.HARD;
         }
       } else if (performanceTrend < -15) {
-        recommendationReason += ' Consider reviewing previous materials and taking practice quizzes before attempting new topics.';
+        recommendationReason +=
+          ' Consider reviewing previous materials and taking practice quizzes before attempting new topics.';
         if (suggestedDifficulty === DifficultyLevel.HARD) {
           suggestedDifficulty = DifficultyLevel.MEDIUM;
         } else if (suggestedDifficulty === DifficultyLevel.MEDIUM) {
@@ -212,7 +233,9 @@ export class RecommendationsService {
         recommendationStatus: RecommendationStatus.PENDING,
         priority,
         urgency,
-        estimatedCompletionTime: this.estimateCompletionTime({ suggestedDifficulty } as any),
+        estimatedCompletionTime: this.estimateCompletionTime({
+          suggestedDifficulty,
+        } as any),
         metadata: {
           generatedBy: 'enhanced_ai_system',
           algorithmVersion: '2.0',
@@ -226,9 +249,12 @@ export class RecommendationsService {
           source: 'attempt_analysis_enhanced',
           generatedAt: new Date(),
           learningStyle: userOnboardingData?.learningStyle || 'BALANCED',
-          personalizedFactors: personalizedRecommendation.factors
-        }
-      };      const newRecommendation = new this.recommendationModel(recommendationData);
+          personalizedFactors: personalizedRecommendation.factors,
+        },
+      };
+      const newRecommendation = new this.recommendationModel(
+        recommendationData,
+      );
       const savedRecommendation = await newRecommendation.save();
 
       // New: After saving, find and attach recommended existing quizzes using aggregation pipeline
@@ -250,7 +276,7 @@ export class RecommendationsService {
       // Update the saved recommendation with recommended quiz IDs
       await this.recommendationModel.updateOne(
         { _id: savedRecommendation._id },
-        { $set: { recommendedQuizzes: quizIds } }
+        { $set: { recommendedQuizzes: quizIds } },
       );
 
       return await this.recommendationModel
@@ -267,16 +293,26 @@ export class RecommendationsService {
   }
 
   // Calculate confidence score based on performance data
-  private calculateConfidence(attemptScore: number, averageScore: number): number {
+  private calculateConfidence(
+    attemptScore: number,
+    averageScore: number,
+  ): number {
     const baseConfidence = 0.5;
     const scoreReliability = Math.min(attemptScore / 100, 1);
-    const trendReliability = Math.abs(attemptScore - averageScore) < 20 ? 0.8 : 0.6;
-    
-    return Math.min(baseConfidence + (scoreReliability * 0.3) + (trendReliability * 0.2), 1);
+    const trendReliability =
+      Math.abs(attemptScore - averageScore) < 20 ? 0.8 : 0.6;
+
+    return Math.min(
+      baseConfidence + scoreReliability * 0.3 + trendReliability * 0.2,
+      1,
+    );
   }
 
   // FIXED: Priority calculation - Higher priority for WEAK areas (low scores)
-  private calculateAttemptPriority(data: { attemptScore: number; averageScore: number }): number {
+  private calculateAttemptPriority(data: {
+    attemptScore: number;
+    averageScore: number;
+  }): number {
     let priority = 30; // Base priority
     const targetScore = 80; // Default target score
 
@@ -308,7 +344,9 @@ export class RecommendationsService {
     return Math.max(15, Math.min(priority, 100)); // Ensure priority stays between 15-100
   }
 
-  async autoGenerateRecommendation(attemptId: string): Promise<Recommendation | null> {
+  async autoGenerateRecommendation(
+    attemptId: string,
+  ): Promise<Recommendation | null> {
     if (!Types.ObjectId.isValid(attemptId)) {
       throw new BadRequestException('Invalid attempt ID format');
     }
@@ -320,7 +358,7 @@ export class RecommendationsService {
       subjectId: '507f1f77bcf86cd799439012', // Mock subject ID
       topicId: '507f1f77bcf86cd799439013', // Mock topic ID
       score: 75,
-      averageScore: 68
+      averageScore: 68,
     };
 
     return this.generateRecommendationFromAttempt(
@@ -329,7 +367,7 @@ export class RecommendationsService {
       mockAttemptData.subjectId,
       mockAttemptData.topicId,
       mockAttemptData.score,
-      mockAttemptData.averageScore
+      mockAttemptData.averageScore,
     );
   }
 
@@ -344,11 +382,7 @@ export class RecommendationsService {
     }
 
     const updatedRecommendation = await this.recommendationModel
-      .findByIdAndUpdate(
-        id, 
-        { recommendationStatus: status }, 
-        { new: true }
-      )
+      .findByIdAndUpdate(id, { recommendationStatus: status }, { new: true })
       .populate('userId', 'name email')
       .populate('subjectId', 'subjectName')
       .populate('topicId', 'topicName')
@@ -371,9 +405,9 @@ export class RecommendationsService {
       {
         $group: {
           _id: '$recommendationStatus',
-          count: { $sum: 1 }
-        }
-      }
+          count: { $sum: 1 },
+        },
+      },
     ]);
 
     const difficultyStats = await this.recommendationModel.aggregate([
@@ -381,9 +415,9 @@ export class RecommendationsService {
       {
         $group: {
           _id: '$suggestedDifficulty',
-          count: { $sum: 1 }
-        }
-      }
+          count: { $sum: 1 },
+        },
+      },
     ]);
 
     const result = {
@@ -392,17 +426,17 @@ export class RecommendationsService {
         accepted: 0,
         rejected: 0,
         completed: 0,
-        total: 0
+        total: 0,
       },
       difficultyBreakdown: {
         Easy: 0,
         Medium: 0,
-        Hard: 0
+        Hard: 0,
       },
-      totalRecommendations: 0
+      totalRecommendations: 0,
     };
 
-    stats.forEach(stat => {
+    stats.forEach((stat) => {
       const status = stat._id.toLowerCase();
       if (result.statusBreakdown.hasOwnProperty(status)) {
         result.statusBreakdown[status] = stat.count;
@@ -410,7 +444,7 @@ export class RecommendationsService {
       result.statusBreakdown.total += stat.count;
     });
 
-    difficultyStats.forEach(stat => {
+    difficultyStats.forEach((stat) => {
       if (result.difficultyBreakdown.hasOwnProperty(stat._id)) {
         result.difficultyBreakdown[stat._id] = stat.count;
       }
@@ -439,18 +473,24 @@ export class RecommendationsService {
       subjectDistribution: {},
       difficultyTrend: [],
       completionRate: 0,
-      averageResponseTime: 0
+      averageResponseTime: 0,
     };
 
     // Calculate subject distribution
-    recommendations.forEach(rec => {
+    recommendations.forEach((rec) => {
       const subjectName = (rec.subjectId as any)?.subjectName || 'Unknown';
-      analytics.subjectDistribution[subjectName] = (analytics.subjectDistribution[subjectName] || 0) + 1;
+      analytics.subjectDistribution[subjectName] =
+        (analytics.subjectDistribution[subjectName] || 0) + 1;
     });
 
     // Calculate completion rate
-    const completedCount = recommendations.filter(r => r.recommendationStatus === RecommendationStatus.COMPLETED).length;
-    analytics.completionRate = recommendations.length > 0 ? Math.round((completedCount / recommendations.length) * 100) : 0;
+    const completedCount = recommendations.filter(
+      (r) => r.recommendationStatus === RecommendationStatus.COMPLETED,
+    ).length;
+    analytics.completionRate =
+      recommendations.length > 0
+        ? Math.round((completedCount / recommendations.length) * 100)
+        : 0;
 
     return analytics;
   }
@@ -461,14 +501,15 @@ export class RecommendationsService {
     }
 
     // Get pending recommendations with enhanced logic
-    const pendingRecommendations = await this.findPendingRecommendations(userId);
-    
+    const pendingRecommendations =
+      await this.findPendingRecommendations(userId);
+
     // Prioritize recommendations based on various factors
-    const prioritizedRecommendations = pendingRecommendations.map(rec => ({
+    const prioritizedRecommendations = pendingRecommendations.map((rec) => ({
       ...JSON.parse(JSON.stringify(rec)),
       priority: this.calculateRecommendationPriority(rec),
       urgency: this.calculateUrgency(rec),
-      estimatedTime: this.estimateCompletionTime(rec)
+      estimatedTime: this.estimateCompletionTime(rec),
     }));
 
     // Sort by priority and urgency
@@ -480,7 +521,10 @@ export class RecommendationsService {
     return prioritizedRecommendations.slice(0, 10); // Return top 10
   }
 
-  async update(id: string, updateRecommendationDto: UpdateRecommendationDto): Promise<Recommendation> {
+  async update(
+    id: string,
+    updateRecommendationDto: UpdateRecommendationDto,
+  ): Promise<Recommendation> {
     if (!Types.ObjectId.isValid(id)) {
       throw new NotFoundException('Invalid recommendation ID format');
     }
@@ -515,31 +559,38 @@ export class RecommendationsService {
       throw new NotFoundException('Invalid attempt ID format');
     }
 
-    await this.recommendationModel.deleteMany({ 
-      attemptId: new Types.ObjectId(attemptId) 
-    }).exec();
+    await this.recommendationModel
+      .deleteMany({
+        attemptId: new Types.ObjectId(attemptId),
+      })
+      .exec();
   }
 
-  async batchUpdateStatus(recommendationIds: string[], status: string): Promise<any> {
+  async batchUpdateStatus(
+    recommendationIds: string[],
+    status: string,
+  ): Promise<any> {
     const validStatuses = Object.values(RecommendationStatus);
     if (!validStatuses.includes(status as RecommendationStatus)) {
       throw new BadRequestException('Invalid status provided');
     }
 
-    const validIds = recommendationIds.filter(id => Types.ObjectId.isValid(id));
+    const validIds = recommendationIds.filter((id) =>
+      Types.ObjectId.isValid(id),
+    );
     if (validIds.length === 0) {
       throw new BadRequestException('No valid recommendation IDs provided');
     }
 
     const result = await this.recommendationModel.updateMany(
-      { _id: { $in: validIds.map(id => new Types.ObjectId(id)) } },
-      { recommendationStatus: status }
+      { _id: { $in: validIds.map((id) => new Types.ObjectId(id)) } },
+      { recommendationStatus: status },
     );
 
     return {
       matchedCount: result.matchedCount,
       modifiedCount: result.modifiedCount,
-      message: `Updated ${result.modifiedCount} recommendations`
+      message: `Updated ${result.modifiedCount} recommendations`,
     };
   }
 
@@ -548,7 +599,9 @@ export class RecommendationsService {
   }
 
   // FIXED: Priority calculation - Easy difficulty = weak areas = HIGH priority
-  private calculateRecommendationPriority(recommendation: Recommendation): number {
+  private calculateRecommendationPriority(
+    recommendation: Recommendation,
+  ): number {
     let priority = 40; // Base priority
 
     // CORRECT LOGIC: Easy difficulty means weak area = HIGH priority
@@ -561,8 +614,11 @@ export class RecommendationsService {
     }
 
     // Increase priority for older recommendations (urgent attention needed)
-    const daysSinceCreated = Math.floor((Date.now() - recommendation.createdAt.getTime()) / (1000 * 60 * 60 * 24));
-    if (daysSinceCreated > 7) priority += 15; // Very old recommendations need attention
+    const daysSinceCreated = Math.floor(
+      (Date.now() - recommendation.createdAt.getTime()) / (1000 * 60 * 60 * 24),
+    );
+    if (daysSinceCreated > 7)
+      priority += 15; // Very old recommendations need attention
     else if (daysSinceCreated > 3) priority += 10;
     else if (daysSinceCreated > 1) priority += 5;
 
@@ -572,9 +628,18 @@ export class RecommendationsService {
   /**
    * FIXED: Generate recommendation reason focusing on WEAK areas for improvement
    */
-  generateRecommendationReason(currentPerformance: number, targetScore: number, scoreGap: number, rec: any): string {
-    const topicName = rec.metadata?.topicName || rec.topicId?.topicName || 'this topic';
-    const progressToTarget = Math.min(100, (currentPerformance / targetScore) * 100);
+  generateRecommendationReason(
+    currentPerformance: number,
+    targetScore: number,
+    scoreGap: number,
+    rec: any,
+  ): string {
+    const topicName =
+      rec.metadata?.topicName || rec.topicId?.topicName || 'this topic';
+    const progressToTarget = Math.min(
+      100,
+      (currentPerformance / targetScore) * 100,
+    );
 
     // CORRECT LOGIC: Focus on weak areas that need improvement
     if (currentPerformance < 50) {
@@ -584,7 +649,7 @@ export class RecommendationsService {
       // Below average - HIGH PRIORITY
       return `⚠️ ${topicName} is a weak area requiring focus. Your ${currentPerformance}% score needs improvement to reach your ${targetScore}% target. Strengthening this area will boost your overall progress.`;
     } else if (currentPerformance < targetScore) {
-      // Below target - MEDIUM PRIORITY  
+      // Below target - MEDIUM PRIORITY
       return `📈 ${topicName} needs practice to reach your ${targetScore}% target. You're ${Math.round(scoreGap)}% away from your goal. Focus on this area to accelerate your progress.`;
     } else if (currentPerformance < 90) {
       // At/above target - LOW PRIORITY
@@ -598,41 +663,48 @@ export class RecommendationsService {
   /**
    * FIXED: Generate recommendation content focusing on WEAK areas that need help
    */
-  generateRecommendationContent(topicName: string, priority: number, currentScore: number = 0, targetScore: number = 80): { title: string; description: string; type: string } {
+  generateRecommendationContent(
+    topicName: string,
+    priority: number,
+    currentScore: number = 0,
+    targetScore: number = 80,
+  ): { title: string; description: string; type: string } {
     if (priority >= 80) {
       // High priority - WEAK area needing urgent help
       return {
         title: `🚨 Focus on ${topicName}`,
         description: `This is a weak area requiring immediate attention. Your performance is below expectations and needs intensive practice to improve.`,
-        type: 'weak'
+        type: 'weak',
       };
     } else if (priority >= 60) {
       // Medium-high priority - Below target area
       return {
         title: `📈 Improve ${topicName}`,
         description: `This area needs practice to reach your ${targetScore}% target. Focus here to boost your overall performance.`,
-        type: 'weak'
+        type: 'weak',
       };
     } else if (priority >= 40) {
       // Medium priority - Moderate performance
       return {
         title: `🔄 Practice ${topicName}`,
         description: `You're making progress but could benefit from additional practice to solidify your understanding.`,
-        type: 'practice'
+        type: 'practice',
       };
     } else {
       // Low priority - Strong area (maintenance only)
       return {
         title: `✅ Maintain ${topicName}`,
         description: `You're performing well in this area. Occasional review will help maintain your strong performance.`,
-        type: 'advanced'
+        type: 'advanced',
       };
     }
   }
 
   private calculateUrgency(recommendation: Recommendation): number {
-    const daysSinceCreated = Math.floor((Date.now() - recommendation.createdAt.getTime()) / (1000 * 60 * 60 * 24));
-    
+    const daysSinceCreated = Math.floor(
+      (Date.now() - recommendation.createdAt.getTime()) / (1000 * 60 * 60 * 24),
+    );
+
     if (daysSinceCreated > 7) return 90;
     if (daysSinceCreated > 3) return 60;
     if (daysSinceCreated > 1) return 30;
@@ -642,10 +714,14 @@ export class RecommendationsService {
   private estimateCompletionTime(recommendation: Recommendation): number {
     // Estimate time in minutes based on difficulty
     switch (recommendation.suggestedDifficulty) {
-      case DifficultyLevel.EASY: return 15;
-      case DifficultyLevel.MEDIUM: return 25;
-      case DifficultyLevel.HARD: return 40;
-      default: return 20;
+      case DifficultyLevel.EASY:
+        return 15;
+      case DifficultyLevel.MEDIUM:
+        return 25;
+      case DifficultyLevel.HARD:
+        return 40;
+      default:
+        return 20;
     }
   }
 
@@ -653,8 +729,11 @@ export class RecommendationsService {
   private async getUserOnboardingData(userId: string): Promise<any> {
     try {
       // Fetch actual user data with enhanced goal progress
-      const user = await this.userModel.findById(userId).select('onboarding').exec();
-      
+      const user = await this.userModel
+        .findById(userId)
+        .select('onboarding')
+        .exec();
+
       if (!user?.onboarding) {
         return {
           learningStyle: 'BALANCED',
@@ -663,25 +742,29 @@ export class RecommendationsService {
           strongAreas: [],
           preferredDifficulty: 'MEDIUM',
           studyTimePerDay: 30,
-          targetScore: 75
+          targetScore: 75,
         };
       }
 
       const onboarding = user.onboarding;
-      
+
       return {
-        learningStyle: onboarding.learningPreferences?.learningStyle || 'BALANCED',
-        proficiencyLevel: onboarding.learningPreferences?.proficiencyLevel || 'INTERMEDIATE',
+        learningStyle:
+          onboarding.learningPreferences?.learningStyle || 'BALANCED',
+        proficiencyLevel:
+          onboarding.learningPreferences?.proficiencyLevel || 'INTERMEDIATE',
         weakAreas: onboarding.assessmentData?.weakAreas || [],
         strongAreas: onboarding.assessmentData?.strongAreas || [],
-        recentlyImprovedAreas: onboarding.assessmentData?.recentlyImprovedAreas || [],
+        recentlyImprovedAreas:
+          onboarding.assessmentData?.recentlyImprovedAreas || [],
         newlyWeakAreas: onboarding.assessmentData?.newlyWeakAreas || [],
-        preferredDifficulty: onboarding.learningPreferences?.preferredDifficulty || 'MEDIUM',
+        preferredDifficulty:
+          onboarding.learningPreferences?.preferredDifficulty || 'MEDIUM',
         studyTimePerDay: onboarding.learningPreferences?.studyTimePerDay || 30,
         targetScore: onboarding.learningPreferences?.targetScore || 75,
         focusAreas: onboarding.learningPreferences?.focusAreas || [],
         goalProgress: onboarding.goalProgress || {},
-        focusAreaProgress: onboarding.focusAreaProgress || []
+        focusAreaProgress: onboarding.focusAreaProgress || [],
       };
     } catch (error) {
       console.error('Error fetching user onboarding data:', error);
@@ -693,14 +776,14 @@ export class RecommendationsService {
   private generatePersonalizedRecommendation(
     attemptScore: number,
     averageScore: number,
-    onboardingData: any
+    onboardingData: any,
   ): any {
     const learningStyle = onboardingData?.learningStyle || 'BALANCED';
     const proficiencyLevel = onboardingData?.proficiencyLevel || 'INTERMEDIATE';
     const targetScore = onboardingData?.targetScore || 80;
     const weakAreas = onboardingData?.weakAreas || [];
     const strongAreas = onboardingData?.strongAreas || [];
-    
+
     let title = '';
     let reason = '';
     let difficulty = DifficultyLevel.MEDIUM;
@@ -748,27 +831,33 @@ export class RecommendationsService {
     // Adjust based on performance trend
     const trend = attemptScore - averageScore;
     if (trend < -15) {
-      reason += ' Your declining performance in this area needs urgent attention.';
+      reason +=
+        ' Your declining performance in this area needs urgent attention.';
       priority += 20;
       factors.push('declining_performance');
     } else if (trend > 15 && attemptScore < targetScore) {
-      reason += ' Your improving trend is encouraging - keep focusing on this weak area!';
+      reason +=
+        ' Your improving trend is encouraging - keep focusing on this weak area!';
       priority += 5;
       factors.push('improving_weak_area');
     }
 
     // Adjust based on learning style
     if (learningStyle === 'NEEDS_SUPPORT' && priority >= 70) {
-      reason += ' We recommend starting with guided examples and visual aids to build confidence.';
-      if (difficulty === DifficultyLevel.MEDIUM) difficulty = DifficultyLevel.EASY;
+      reason +=
+        ' We recommend starting with guided examples and visual aids to build confidence.';
+      if (difficulty === DifficultyLevel.MEDIUM)
+        difficulty = DifficultyLevel.EASY;
       priority += 10;
       factors.push('needs_support');
     }
 
     // Adjust based on proficiency level
     if (proficiencyLevel === 'BEGINNER' && priority >= 70) {
-      reason += ' As a beginner, focus on building strong fundamentals in this weak area.';
-      if (difficulty === DifficultyLevel.MEDIUM) difficulty = DifficultyLevel.EASY;
+      reason +=
+        ' As a beginner, focus on building strong fundamentals in this weak area.';
+      if (difficulty === DifficultyLevel.MEDIUM)
+        difficulty = DifficultyLevel.EASY;
       factors.push('beginner_weak_area');
     }
 
@@ -777,7 +866,7 @@ export class RecommendationsService {
       reason: reason.trim(),
       difficulty,
       priority: Math.max(15, Math.min(priority, 100)),
-      factors
+      factors,
     };
   }
 }

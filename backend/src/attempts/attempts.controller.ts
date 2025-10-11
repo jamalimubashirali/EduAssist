@@ -1,4 +1,16 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, HttpCode, HttpStatus, Req, Query } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Patch,
+  Param,
+  Delete,
+  HttpCode,
+  HttpStatus,
+  Req,
+  Query,
+} from '@nestjs/common';
 import { AttemptsService } from './attempts.service';
 import { CreateAttemptDto } from './dto/create-attempt.dto';
 import { UpdateAttemptDto } from './dto/update-attempt.dto';
@@ -18,8 +30,9 @@ export class AttemptsController {
   @Post('start-quiz')
   @HttpCode(HttpStatus.CREATED)
   async startQuiz(
-    @Body() startQuizDto: { quizId: string; topicId: string; subjectId?: string },
-    @Req() req: Request
+    @Body()
+    startQuizDto: { quizId: string; topicId: string; subjectId?: string },
+    @Req() req: Request,
   ) {
     const userId = req.user?.['sub'];
     if (!userId) {
@@ -30,7 +43,7 @@ export class AttemptsController {
       userId,
       quizId: startQuizDto.quizId,
       topicId: startQuizDto.topicId,
-      subjectId: startQuizDto.subjectId
+      subjectId: startQuizDto.subjectId,
     };
 
     return this.attemptsService.create(createAttemptDto);
@@ -40,7 +53,7 @@ export class AttemptsController {
   @HttpCode(HttpStatus.OK)
   async submitAnswer(
     @Param('id') attemptId: string,
-    @Body() submitAnswerDto: SubmitAnswerDto
+    @Body() submitAnswerDto: SubmitAnswerDto,
   ) {
     return this.attemptsService.submitAnswer(attemptId, submitAnswerDto);
   }
@@ -81,7 +94,7 @@ export class AttemptsController {
   @HttpCode(HttpStatus.OK)
   async getUserAnalytics(
     @Param('topicId') topicId: string,
-    @Req() req: Request
+    @Req() req: Request,
   ) {
     const userId = req.user?.['sub'];
     if (!userId) {
@@ -100,7 +113,7 @@ export class AttemptsController {
   @HttpCode(HttpStatus.OK)
   async findByUserAndTopic(
     @Param('userId') userId: string,
-    @Param('topicId') topicId: string
+    @Param('topicId') topicId: string,
   ) {
     return this.attemptsService.findByUserAndTopic(userId, topicId);
   }
@@ -113,7 +126,10 @@ export class AttemptsController {
 
   @Patch(':id')
   @HttpCode(HttpStatus.OK)
-  async update(@Param('id') id: string, @Body() updateAttemptDto: UpdateAttemptDto) {
+  async update(
+    @Param('id') id: string,
+    @Body() updateAttemptDto: UpdateAttemptDto,
+  ) {
     return this.attemptsService.update(id, updateAttemptDto);
   }
 

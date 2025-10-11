@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { Question } from './schema/questions.schema';
@@ -11,7 +15,7 @@ import { GenerateAssessmentDto } from './dto/generate-assessment.dto';
 export class QuestionsService {
   constructor(
     @InjectModel(Question.name) private questionModel: Model<Question>,
-  ) { }
+  ) {}
 
   async create(createQuestionDto: CreateQuestionDto): Promise<Question | null> {
     try {
@@ -24,8 +28,14 @@ export class QuestionsService {
       }
 
       // Validate that correct answer is in answer options
-      if (!createQuestionDto.answerOptions.includes(createQuestionDto.correctAnswer)) {
-        throw new BadRequestException('Correct answer must be one of the answer options');
+      if (
+        !createQuestionDto.answerOptions.includes(
+          createQuestionDto.correctAnswer,
+        )
+      ) {
+        throw new BadRequestException(
+          'Correct answer must be one of the answer options',
+        );
       }
 
       const questionData = {
@@ -46,7 +56,9 @@ export class QuestionsService {
       if (error instanceof BadRequestException) {
         throw error;
       }
-      throw new BadRequestException(`Failed to create question: ${error.message}`);
+      throw new BadRequestException(
+        `Failed to create question: ${error.message}`,
+      );
     }
   }
 
@@ -83,33 +95,35 @@ export class QuestionsService {
     }
 
     // Use aggregation pipeline for better performance
-    return await this.questionModel.aggregate([
-      {
-        $match: {
-          topicId: new Types.ObjectId(topicId),
-          isActive: true
-        }
-      },
-      {
-        $lookup: {
-          from: 'subjects',
-          localField: 'subjectId',
-          foreignField: '_id',
-          as: 'subjectData',
-          pipeline: [{ $project: { subjectName: 1 } }]
-        }
-      },
-      {
-        $addFields: {
-          subjectId: {
-            _id: '$subjectId',
-            subjectName: { $arrayElemAt: ['$subjectData.subjectName', 0] }
-          }
-        }
-      },
-      { $unset: ['subjectData'] },
-      { $sort: { questionDifficulty: 1, createdAt: -1 } }
-    ]).exec();
+    return await this.questionModel
+      .aggregate([
+        {
+          $match: {
+            topicId: new Types.ObjectId(topicId),
+            isActive: true,
+          },
+        },
+        {
+          $lookup: {
+            from: 'subjects',
+            localField: 'subjectId',
+            foreignField: '_id',
+            as: 'subjectData',
+            pipeline: [{ $project: { subjectName: 1 } }],
+          },
+        },
+        {
+          $addFields: {
+            subjectId: {
+              _id: '$subjectId',
+              subjectName: { $arrayElemAt: ['$subjectData.subjectName', 0] },
+            },
+          },
+        },
+        { $unset: ['subjectData'] },
+        { $sort: { questionDifficulty: 1, createdAt: -1 } },
+      ])
+      .exec();
   }
 
   async findBySubject(subjectId: string): Promise<Question[]> {
@@ -118,40 +132,42 @@ export class QuestionsService {
     }
 
     // Use aggregation pipeline for better performance
-    return await this.questionModel.aggregate([
-      {
-        $match: {
-          subjectId: new Types.ObjectId(subjectId),
-          isActive: true
-        }
-      },
-      {
-        $lookup: {
-          from: 'topics',
-          localField: 'topicId',
-          foreignField: '_id',
-          as: 'topicData',
-          pipeline: [{ $project: { topicName: 1 } }]
-        }
-      },
-      {
-        $addFields: {
-          topicId: {
-            _id: '$topicId',
-            topicName: { $arrayElemAt: ['$topicData.topicName', 0] }
-          }
-        }
-      },
-      { $unset: ['topicData'] },
-      { $sort: { 'topicId._id': 1, questionDifficulty: 1 } }
-    ]).exec();
+    return await this.questionModel
+      .aggregate([
+        {
+          $match: {
+            subjectId: new Types.ObjectId(subjectId),
+            isActive: true,
+          },
+        },
+        {
+          $lookup: {
+            from: 'topics',
+            localField: 'topicId',
+            foreignField: '_id',
+            as: 'topicData',
+            pipeline: [{ $project: { topicName: 1 } }],
+          },
+        },
+        {
+          $addFields: {
+            topicId: {
+              _id: '$topicId',
+              topicName: { $arrayElemAt: ['$topicData.topicName', 0] },
+            },
+          },
+        },
+        { $unset: ['topicData'] },
+        { $sort: { 'topicId._id': 1, questionDifficulty: 1 } },
+      ])
+      .exec();
   }
 
   async findByDifficulty(difficulty: DifficultyLevel): Promise<Question[]> {
     return await this.questionModel
       .find({
         questionDifficulty: difficulty,
-        isActive: true
+        isActive: true,
       })
       .populate('topicId', 'topicName')
       .populate('subjectId', 'subjectName')
@@ -159,153 +175,119 @@ export class QuestionsService {
       .exec();
   }
 
-  async findByTopicAndDifficulty(topicId: string, difficulty: DifficultyLevel): Promise<Question[]> {
+  async findByTopicAndDifficulty(
+    topicId: string,
+    difficulty: DifficultyLevel,
+  ): Promise<Question[]> {
     if (!Types.ObjectId.isValid(topicId)) {
       throw new BadRequestException('Invalid topic ID format');
     }
 
     // Use aggregation pipeline for better performance with random sampling
-    return await this.questionModel.aggregate([
-      {
-        $match: {
-          topicId: new Types.ObjectId(topicId),
-          questionDifficulty: difficulty,
-          isActive: true
-        }
-      },
-      { $sample: { size: 100 } }, // Add randomization
-      {
-        $lookup: {
-          from: 'subjects',
-          localField: 'subjectId',
-          foreignField: '_id',
-          as: 'subjectData',
-          pipeline: [{ $project: { subjectName: 1 } }]
-        }
-      },
-      {
-        $addFields: {
-          subjectId: {
-            _id: '$subjectId',
-            subjectName: { $arrayElemAt: ['$subjectData.subjectName', 0] }
-          }
-        }
-      },
-      { $unset: ['subjectData'] },
-      { $sort: { createdAt: -1 } }
-    ]).exec();
+    return await this.questionModel
+      .aggregate([
+        {
+          $match: {
+            topicId: new Types.ObjectId(topicId),
+            questionDifficulty: difficulty,
+            isActive: true,
+          },
+        },
+        { $sample: { size: 100 } }, // Add randomization
+        {
+          $lookup: {
+            from: 'subjects',
+            localField: 'subjectId',
+            foreignField: '_id',
+            as: 'subjectData',
+            pipeline: [{ $project: { subjectName: 1 } }],
+          },
+        },
+        {
+          $addFields: {
+            subjectId: {
+              _id: '$subjectId',
+              subjectName: { $arrayElemAt: ['$subjectData.subjectName', 0] },
+            },
+          },
+        },
+        { $unset: ['subjectData'] },
+        { $sort: { createdAt: -1 } },
+      ])
+      .exec();
   }
 
-  async generateAssessment(generateAssessmentDto: GenerateAssessmentDto): Promise<Question[]> {
+  async generateAssessment(
+    generateAssessmentDto: GenerateAssessmentDto,
+  ): Promise<Question[]> {
     const { subjectIds, count = 10 } = generateAssessmentDto;
 
     if (!subjectIds || subjectIds.length === 0) {
-      throw new BadRequestException('At least one subject ID must be provided.');
+      throw new BadRequestException(
+        'At least one subject ID must be provided.',
+      );
     }
 
     const validSubjectIds = subjectIds
-      .filter(id => Types.ObjectId.isValid(id))
-      .map(id => new Types.ObjectId(id));
+      .filter((id) => Types.ObjectId.isValid(id))
+      .map((id) => new Types.ObjectId(id));
 
     if (validSubjectIds.length === 0) {
       throw new BadRequestException('No valid subject IDs provided.');
     }
 
     try {
-      console.log(`[generateAssessment] Starting assessment generation for ${validSubjectIds.length} subjects, requesting ${count} questions`);
+      console.log(
+        `[generateAssessment] Starting assessment generation for ${validSubjectIds.length} subjects, requesting ${count} questions`,
+      );
       const startTime = Date.now();
 
       // Optimized single aggregation pipeline with better random selection and timeout handling
-      const questions = await Promise.race([
-        this.questionModel.aggregate([
-          { $match: { subjectId: { $in: validSubjectIds }, isActive: true } },
-          // Add random field for shuffling
-          {
-            $addFields: {
-              randomField: { $rand: {} }
-            }
-          },
-          // Sort by random field for shuffling
-          { $sort: { randomField: 1 } },
-          // Group by subject to ensure balanced distribution
-          {
-            $group: {
-              _id: '$subjectId',
-              questions: { $push: '$$ROOT' },
-              count: { $sum: 1 }
-            }
-          },
-          // Sample questions from each subject proportionally
-          {
-            $project: {
-              _id: 1,
-              questions: {
-                $slice: [
-                  '$questions',
-                  { $ceil: { $divide: [count, validSubjectIds.length] } }
-                ]
-              }
-            }
-          },
-          { $unwind: '$questions' },
-          { $replaceRoot: { newRoot: '$questions' } },
-          // Remove the random field
-          { $unset: ['randomField'] },
-          // Populate topic and subject data in single pipeline
-          {
-            $lookup: {
-              from: 'topics',
-              localField: 'topicId',
-              foreignField: '_id',
-              as: 'topicData',
-              pipeline: [{ $project: { topicName: 1 } }]
-            }
-          },
-          {
-            $lookup: {
-              from: 'subjects',
-              localField: 'subjectId',
-              foreignField: '_id',
-              as: 'subjectData',
-              pipeline: [{ $project: { subjectName: 1 } }]
-            }
-          },
-          // Transform to expected format
-          {
-            $addFields: {
-              topicId: {
-                _id: '$topicId',
-                topicName: { $arrayElemAt: ['$topicData.topicName', 0] }
+      const questions = (await Promise.race([
+        this.questionModel
+          .aggregate([
+            { $match: { subjectId: { $in: validSubjectIds }, isActive: true } },
+            // Add random field for shuffling
+            {
+              $addFields: {
+                randomField: { $rand: {} },
               },
-              subjectId: {
+            },
+            // Sort by random field for shuffling
+            { $sort: { randomField: 1 } },
+            // Group by subject to ensure balanced distribution
+            {
+              $group: {
                 _id: '$subjectId',
-                subjectName: { $arrayElemAt: ['$subjectData.subjectName', 0] }
-              }
-            }
-          },
-          { $unset: ['topicData', 'subjectData'] },
-          // Final random selection of exact count needed
-          { $sample: { size: Math.min(count, 50) } }
-        ]).exec(),
-        new Promise((_, reject) =>
-          setTimeout(() => reject(new Error('Assessment generation timeout')), 20000)
-        )
-      ]) as Question[];
-
-      if (questions.length === 0) {
-        // Optimized fallback with timeout handling
-        const fallbackQuestions = await Promise.race([
-          this.questionModel.aggregate([
-            { $match: { isActive: true } },
-            { $sample: { size: Math.min(count * 2, 100) } },
+                questions: { $push: '$$ROOT' },
+                count: { $sum: 1 },
+              },
+            },
+            // Sample questions from each subject proportionally
+            {
+              $project: {
+                _id: 1,
+                questions: {
+                  $slice: [
+                    '$questions',
+                    { $ceil: { $divide: [count, validSubjectIds.length] } },
+                  ],
+                },
+              },
+            },
+            { $unwind: '$questions' },
+            { $replaceRoot: { newRoot: '$questions' } },
+            // Remove the random field
+            { $unset: ['randomField'] },
+            // Populate topic and subject data in single pipeline
             {
               $lookup: {
                 from: 'topics',
                 localField: 'topicId',
                 foreignField: '_id',
                 as: 'topicData',
-                pipeline: [{ $project: { topicName: 1 } }]
-              }
+                pipeline: [{ $project: { topicName: 1 } }],
+              },
             },
             {
               $lookup: {
@@ -313,37 +295,102 @@ export class QuestionsService {
                 localField: 'subjectId',
                 foreignField: '_id',
                 as: 'subjectData',
-                pipeline: [{ $project: { subjectName: 1 } }]
-              }
+                pipeline: [{ $project: { subjectName: 1 } }],
+              },
             },
+            // Transform to expected format
             {
               $addFields: {
                 topicId: {
                   _id: '$topicId',
-                  topicName: { $arrayElemAt: ['$topicData.topicName', 0] }
+                  topicName: { $arrayElemAt: ['$topicData.topicName', 0] },
                 },
                 subjectId: {
                   _id: '$subjectId',
-                  subjectName: { $arrayElemAt: ['$subjectData.subjectName', 0] }
-                }
-              }
+                  subjectName: {
+                    $arrayElemAt: ['$subjectData.subjectName', 0],
+                  },
+                },
+              },
             },
             { $unset: ['topicData', 'subjectData'] },
-            { $sample: { size: Math.min(count, 50) } }
-          ]).exec(),
+            // Final random selection of exact count needed
+            { $sample: { size: Math.min(count, 50) } },
+          ])
+          .exec(),
+        new Promise((_, reject) =>
+          setTimeout(
+            () => reject(new Error('Assessment generation timeout')),
+            20000,
+          ),
+        ),
+      ])) as Question[];
+
+      if (questions.length === 0) {
+        // Optimized fallback with timeout handling
+        const fallbackQuestions = (await Promise.race([
+          this.questionModel
+            .aggregate([
+              { $match: { isActive: true } },
+              { $sample: { size: Math.min(count * 2, 100) } },
+              {
+                $lookup: {
+                  from: 'topics',
+                  localField: 'topicId',
+                  foreignField: '_id',
+                  as: 'topicData',
+                  pipeline: [{ $project: { topicName: 1 } }],
+                },
+              },
+              {
+                $lookup: {
+                  from: 'subjects',
+                  localField: 'subjectId',
+                  foreignField: '_id',
+                  as: 'subjectData',
+                  pipeline: [{ $project: { subjectName: 1 } }],
+                },
+              },
+              {
+                $addFields: {
+                  topicId: {
+                    _id: '$topicId',
+                    topicName: { $arrayElemAt: ['$topicData.topicName', 0] },
+                  },
+                  subjectId: {
+                    _id: '$subjectId',
+                    subjectName: {
+                      $arrayElemAt: ['$subjectData.subjectName', 0],
+                    },
+                  },
+                },
+              },
+              { $unset: ['topicData', 'subjectData'] },
+              { $sample: { size: Math.min(count, 50) } },
+            ])
+            .exec(),
           new Promise((_, reject) =>
-            setTimeout(() => reject(new Error('Fallback assessment generation timeout')), 15000)
-          )
-        ]) as Question[];
-        console.log(`[generateAssessment] Fallback completed in ${Date.now() - startTime}ms, returning ${fallbackQuestions.length} questions`);
+            setTimeout(
+              () => reject(new Error('Fallback assessment generation timeout')),
+              15000,
+            ),
+          ),
+        ])) as Question[];
+        console.log(
+          `[generateAssessment] Fallback completed in ${Date.now() - startTime}ms, returning ${fallbackQuestions.length} questions`,
+        );
         return fallbackQuestions;
       }
 
-      console.log(`[generateAssessment] Completed in ${Date.now() - startTime}ms, returning ${questions.length} questions`);
+      console.log(
+        `[generateAssessment] Completed in ${Date.now() - startTime}ms, returning ${questions.length} questions`,
+      );
       return questions;
     } catch (error) {
       if (error.message.includes('timeout')) {
-        throw new BadRequestException('Assessment generation is taking too long. Please try again.');
+        throw new BadRequestException(
+          'Assessment generation is taking too long. Please try again.',
+        );
       }
 
       console.error('Aggregation failed, trying simple fallback:', error);
@@ -353,7 +400,7 @@ export class QuestionsService {
         const fallbackQuestions = await this.questionModel
           .find({
             subjectId: { $in: validSubjectIds },
-            isActive: true
+            isActive: true,
           })
           .populate('topicId', 'topicName')
           .populate('subjectId', 'subjectName')
@@ -364,32 +411,51 @@ export class QuestionsService {
         const shuffled = fallbackQuestions.sort(() => Math.random() - 0.5);
         const result = shuffled.slice(0, count);
 
-        console.log(`[generateAssessment] Fallback completed, returning ${result.length} questions`);
+        console.log(
+          `[generateAssessment] Fallback completed, returning ${result.length} questions`,
+        );
         return result;
       } catch (fallbackError) {
         console.error('Fallback query also failed:', fallbackError);
-        throw new BadRequestException(`Failed to generate assessment: ${error.message}`);
+        throw new BadRequestException(
+          `Failed to generate assessment: ${error.message}`,
+        );
       }
     }
   }
 
-  async update(id: string, updateQuestionDto: UpdateQuestionDto): Promise<Question> {
+  async update(
+    id: string,
+    updateQuestionDto: UpdateQuestionDto,
+  ): Promise<Question> {
     if (!Types.ObjectId.isValid(id)) {
       throw new NotFoundException('Invalid question ID format');
     }
 
     // Validate ObjectIds if provided
-    if (updateQuestionDto.topicId && !Types.ObjectId.isValid(updateQuestionDto.topicId)) {
+    if (
+      updateQuestionDto.topicId &&
+      !Types.ObjectId.isValid(updateQuestionDto.topicId)
+    ) {
       throw new BadRequestException('Invalid topic ID format');
     }
-    if (updateQuestionDto.subjectId && !Types.ObjectId.isValid(updateQuestionDto.subjectId)) {
+    if (
+      updateQuestionDto.subjectId &&
+      !Types.ObjectId.isValid(updateQuestionDto.subjectId)
+    ) {
       throw new BadRequestException('Invalid subject ID format');
     }
 
     // Validate correct answer if provided
     if (updateQuestionDto.answerOptions && updateQuestionDto.correctAnswer) {
-      if (!updateQuestionDto.answerOptions.includes(updateQuestionDto.correctAnswer)) {
-        throw new BadRequestException('Correct answer must be one of the answer options');
+      if (
+        !updateQuestionDto.answerOptions.includes(
+          updateQuestionDto.correctAnswer,
+        )
+      ) {
+        throw new BadRequestException(
+          'Correct answer must be one of the answer options',
+        );
       }
     }
 
@@ -436,10 +502,10 @@ export class QuestionsService {
             $or: [
               { questionText: { $regex: searchRegex } },
               { tags: { $in: [searchRegex] } },
-              { explanation: { $regex: searchRegex } }
-            ]
-          }
-        ]
+              { explanation: { $regex: searchRegex } },
+            ],
+          },
+        ],
       })
       .populate('topicId', 'topicName')
       .populate('subjectId', 'subjectName')
@@ -467,17 +533,24 @@ export class QuestionsService {
     const stats = {
       totalAttempts: question.timesAsked || 0,
       correctAttempts: question.timesAnsweredCorrectly || 0,
-      accuracy: question.timesAsked > 0
-        ? Math.round((question.timesAnsweredCorrectly / question.timesAsked) * 100)
-        : 0,
+      accuracy:
+        question.timesAsked > 0
+          ? Math.round(
+              (question.timesAnsweredCorrectly / question.timesAsked) * 100,
+            )
+          : 0,
       averageTime: question.averageTimeToAnswer || 0,
-      difficultyRating: question.difficultyRating || 50
+      difficultyRating: question.difficultyRating || 50,
     };
 
     return { question, stats };
   }
 
-  async updateQuestionStats(questionId: string, isCorrect: boolean, timeSpent: number): Promise<void> {
+  async updateQuestionStats(
+    questionId: string,
+    isCorrect: boolean,
+    timeSpent: number,
+  ): Promise<void> {
     if (!Types.ObjectId.isValid(questionId)) {
       return;
     }
@@ -488,14 +561,15 @@ export class QuestionsService {
     const updateData: any = {
       $inc: {
         timesAsked: 1,
-        ...(isCorrect ? { timesAnsweredCorrectly: 1 } : {})
-      }
+        ...(isCorrect ? { timesAnsweredCorrectly: 1 } : {}),
+      },
     };
 
     // Update average time
     const currentAverage = question.averageTimeToAnswer || 0;
     const currentCount = question.timesAsked || 0;
-    const newAverage = ((currentAverage * currentCount) + timeSpent) / (currentCount + 1);
+    const newAverage =
+      (currentAverage * currentCount + timeSpent) / (currentCount + 1);
 
     updateData.averageTimeToAnswer = Math.round(newAverage);
 
@@ -505,47 +579,51 @@ export class QuestionsService {
   /**
    * Get questions with subject and topic data using aggregation pipeline
    */
-  async getQuestionsWithSubjectTopicData(questionIds: Types.ObjectId[]): Promise<any[]> {
-    return await this.questionModel.aggregate([
-      { $match: { _id: { $in: questionIds }, isActive: true } },
-      {
-        $lookup: {
-          from: 'subjects',
-          localField: 'subjectId',
-          foreignField: '_id',
-          as: 'subjectData'
-        }
-      },
-      {
-        $lookup: {
-          from: 'topics',
-          localField: 'topicId',
-          foreignField: '_id',
-          as: 'topicData'
-        }
-      },
-      {
-        $project: {
-          _id: 1,
-          questionText: 1,
-          answerOptions: 1,
-          correctAnswer: 1,
-          explanation: 1,
-          questionDifficulty: 1,
-          tags: 1,
-          timesAsked: 1,
-          timesAnsweredCorrectly: 1,
-          averageTimeToAnswer: 1,
-          subjectId: {
-            _id: '$subjectId',
-            subjectName: { $arrayElemAt: ['$subjectData.subjectName', 0] }
+  async getQuestionsWithSubjectTopicData(
+    questionIds: Types.ObjectId[],
+  ): Promise<any[]> {
+    return await this.questionModel
+      .aggregate([
+        { $match: { _id: { $in: questionIds }, isActive: true } },
+        {
+          $lookup: {
+            from: 'subjects',
+            localField: 'subjectId',
+            foreignField: '_id',
+            as: 'subjectData',
           },
-          topicId: {
-            _id: '$topicId',
-            topicName: { $arrayElemAt: ['$topicData.topicName', 0] }
-          }
-        }
-      }
-    ]).exec();
+        },
+        {
+          $lookup: {
+            from: 'topics',
+            localField: 'topicId',
+            foreignField: '_id',
+            as: 'topicData',
+          },
+        },
+        {
+          $project: {
+            _id: 1,
+            questionText: 1,
+            answerOptions: 1,
+            correctAnswer: 1,
+            explanation: 1,
+            questionDifficulty: 1,
+            tags: 1,
+            timesAsked: 1,
+            timesAnsweredCorrectly: 1,
+            averageTimeToAnswer: 1,
+            subjectId: {
+              _id: '$subjectId',
+              subjectName: { $arrayElemAt: ['$subjectData.subjectName', 0] },
+            },
+            topicId: {
+              _id: '$topicId',
+              topicName: { $arrayElemAt: ['$topicData.topicName', 0] },
+            },
+          },
+        },
+      ])
+      .exec();
   }
 }

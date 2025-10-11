@@ -6,18 +6,21 @@ import { GlobalExceptionFilter } from '../common/filters/global-exception.filter
 
 async function bootstrap() {
   const logger = new Logger('Bootstrap');
-  
+
   try {
     logger.log('🚀 Starting EduAssist Backend...');
-    
+
     const app = await NestFactory.create(AppModule, {
       bodyParser: true,
     });
-    
+
     // Configure request timeout for long-running operations like assessment generation
     app.use((req, res, next) => {
       // Increase timeout for assessment generation endpoints
-      if (req.url.includes('/assessments/generate') || req.url.includes('/generate-assessment')) {
+      if (
+        req.url.includes('/assessments/generate') ||
+        req.url.includes('/generate-assessment')
+      ) {
         req.setTimeout(60000); // 60 seconds for assessment generation
         res.setTimeout(60000);
       } else {
@@ -31,12 +34,13 @@ async function bootstrap() {
     app.enableCors({
       origin: [
         process.env.FRONTEND_URL || 'http://localhost:3000',
-        'http://localhost:3001'  // Additional port for Next.js dev server
+        'http://localhost:3001', // Additional port for Next.js dev server
       ],
       credentials: true,
       methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'],
       allowedHeaders: ['Content-Type', 'Authorization'],
-    });app.use(cookieParser());
+    });
+    app.use(cookieParser());
     app.setGlobalPrefix('api/v1');
 
     // Global exception filter
@@ -49,17 +53,19 @@ async function bootstrap() {
         forbidNonWhitelisted: true,
         transform: true,
         disableErrorMessages: process.env.NODE_ENV === 'production',
-      })
+      }),
     );
 
     const port = process.env.PORT || 5000;
     await app.listen(port);
-    
+
     logger.log(`🚀 EduAssist Backend running on port ${port}`);
     logger.log(`📚 API Documentation: http://localhost:${port}/api/v1`);
     logger.log(`🔒 Environment: ${process.env.NODE_ENV || 'development'}`);
-    logger.log(`🌐 CORS enabled for: ${process.env.FRONTEND_URL || 'http://localhost:3000'}`);
-    
+    logger.log(
+      `🌐 CORS enabled for: ${process.env.FRONTEND_URL || 'http://localhost:3000'}`,
+    );
+
     // Graceful shutdown handlers
     process.on('SIGTERM', () => {
       logger.warn('🛑 SIGTERM signal received: closing HTTP server');
@@ -70,7 +76,6 @@ async function bootstrap() {
       logger.warn('🛑 SIGINT signal received: closing HTTP server');
       app.close();
     });
-
   } catch (error) {
     logger.error('❌ Failed to start server:', error);
     process.exit(1);

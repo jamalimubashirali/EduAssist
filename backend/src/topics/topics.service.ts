@@ -1,4 +1,9 @@
-import { Injectable, NotFoundException, BadRequestException, ConflictException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+  ConflictException,
+} from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { Topic } from './schema/topics.schema';
@@ -7,9 +12,7 @@ import { UpdateTopicDto } from './dto/updatetopic.dto';
 
 @Injectable()
 export class TopicsService {
-  constructor(
-    @InjectModel(Topic.name) private topicModel: Model<Topic>,
-  ) {}
+  constructor(@InjectModel(Topic.name) private topicModel: Model<Topic>) {}
 
   async create(createTopicDto: CreateTopicDto): Promise<Topic | null> {
     try {
@@ -21,11 +24,13 @@ export class TopicsService {
       // Check for duplicate topic name within the same subject
       const existingTopic = await this.topicModel.findOne({
         topicName: createTopicDto.topicName,
-        subjectId: new Types.ObjectId(createTopicDto.subjectId)
+        subjectId: new Types.ObjectId(createTopicDto.subjectId),
       });
 
       if (existingTopic) {
-        throw new ConflictException('Topic with this name already exists in this subject');
+        throw new ConflictException(
+          'Topic with this name already exists in this subject',
+        );
       }
 
       const topicData = {
@@ -41,7 +46,10 @@ export class TopicsService {
         .populate('subjectId', 'subjectName subjectDescription')
         .exec();
     } catch (error) {
-      if (error instanceof BadRequestException || error instanceof ConflictException) {
+      if (
+        error instanceof BadRequestException ||
+        error instanceof ConflictException
+      ) {
         throw error;
       }
       throw new BadRequestException(`Failed to create topic: ${error.message}`);
@@ -91,7 +99,10 @@ export class TopicsService {
     }
 
     // Validate subject ID if provided
-    if (updateTopicDto.subjectId && !Types.ObjectId.isValid(updateTopicDto.subjectId)) {
+    if (
+      updateTopicDto.subjectId &&
+      !Types.ObjectId.isValid(updateTopicDto.subjectId)
+    ) {
       throw new BadRequestException('Invalid subject ID format');
     }
 
@@ -100,9 +111,9 @@ export class TopicsService {
       const existingTopic = await this.topicModel.findOne({
         _id: { $ne: id },
         topicName: updateTopicDto.topicName,
-        subjectId: updateTopicDto.subjectId 
+        subjectId: updateTopicDto.subjectId
           ? new Types.ObjectId(updateTopicDto.subjectId)
-          : { $exists: true }
+          : { $exists: true },
       });
 
       if (existingTopic) {
@@ -146,8 +157,8 @@ export class TopicsService {
       .find({
         $or: [
           { topicName: { $regex: searchRegex } },
-          { topicDescription: { $regex: searchRegex } }
-        ]
+          { topicDescription: { $regex: searchRegex } },
+        ],
       })
       .populate('subjectId', 'subjectName')
       .limit(20)
@@ -175,7 +186,7 @@ export class TopicsService {
       totalQuestions: 0,
       totalQuizzes: 0,
       averageDifficulty: 'Medium',
-      popularityScore: 0
+      popularityScore: 0,
     };
 
     return { topic, stats };

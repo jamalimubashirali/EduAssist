@@ -53,8 +53,16 @@ export class User {
 
   @Prop({
     type: {
-      status: { type: String, enum: Object.values(OnboardingStatus), default: OnboardingStatus.NOT_STARTED },
-      step: { type: String, enum: Object.values(OnboardingStep), default: OnboardingStep.WELCOME },
+      status: {
+        type: String,
+        enum: Object.values(OnboardingStatus),
+        default: OnboardingStatus.NOT_STARTED,
+      },
+      step: {
+        type: String,
+        enum: Object.values(OnboardingStep),
+        default: OnboardingStep.WELCOME,
+      },
       startedAt: { type: Date, default: null },
       completedAt: { type: Date, default: null },
       lastUpdatedAt: { type: Date, default: null },
@@ -71,7 +79,7 @@ export class User {
         learningStyle: { type: String, default: null },
         recommendedPath: { type: String, default: null },
         initialDifficulty: { type: String, default: 'MEDIUM' },
-        completedAt: { type: Date, default: null }
+        completedAt: { type: Date, default: null },
       },
       // Learning preferences and goals
       learningPreferences: {
@@ -79,7 +87,7 @@ export class User {
         preferredDifficulty: { type: String, default: 'MEDIUM' },
         focusAreas: { type: [String], default: [] },
         targetScore: { type: Number, default: 75 },
-        weeklyGoal: { type: Number, default: 5 } // quizzes per week
+        weeklyGoal: { type: Number, default: 5 }, // quizzes per week
       },
       // Progress tracking
       progressMetrics: {
@@ -87,7 +95,7 @@ export class User {
         averageAccuracy: { type: Number, default: 0 },
         improvementRate: { type: Number, default: 0 },
         consistencyScore: { type: Number, default: 0 },
-        engagementLevel: { type: String, default: 'LOW' }
+        engagementLevel: { type: String, default: 'LOW' },
       },
       // Goal progress tracking
       goalProgress: {
@@ -101,26 +109,30 @@ export class User {
           target: { type: Number, default: 5 },
           completed: { type: Number, default: 0 },
           percentage: { type: Number, default: 0 },
-          isOnTrack: { type: Boolean, default: false }
-        }
+          isOnTrack: { type: Boolean, default: false },
+        },
       },
       // Focus area progress
       focusAreaProgress: { type: Array, default: [] },
       // Improving and declining topics
       improvingTopics: { type: [String], default: [] },
-      decliningTopics: { type: [String], default: [] }
+      decliningTopics: { type: [String], default: [] },
     },
     default: {
       status: OnboardingStatus.NOT_STARTED,
       step: OnboardingStep.WELCOME,
       assessmentData: {},
       learningPreferences: {},
-      progressMetrics: {}
-    }
+      progressMetrics: {},
+    },
   })
   onboarding: any;
 
-  @Prop({ type: String, enum: Object.values(UserRole), default: UserRole.STUDENT })
+  @Prop({
+    type: String,
+    enum: Object.values(UserRole),
+    default: UserRole.STUDENT,
+  })
   role: UserRole;
 
   @Prop({ default: 0 })
@@ -252,4 +264,3 @@ UserSchema.pre('save', async function (next) {
     next(error);
   }
 });
-

@@ -1,4 +1,13 @@
-import { Controller, Get, Post, Body, Param, HttpCode, HttpStatus, Req } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Param,
+  HttpCode,
+  HttpStatus,
+  Req,
+} from '@nestjs/common';
 import { PerformanceService } from './performance.service';
 import { Request } from 'express';
 
@@ -9,12 +18,13 @@ export class PerformanceController {
   @Post('update')
   @HttpCode(HttpStatus.OK)
   async updatePerformance(
-    @Body() updateData: {
+    @Body()
+    updateData: {
       topicId: string;
       subjectId: string;
       attemptData: any;
     },
-    @Req() req: Request
+    @Req() req: Request,
   ) {
     const userId = req.user?.['sub'];
     if (!userId) {
@@ -25,7 +35,7 @@ export class PerformanceController {
       userId,
       updateData.topicId,
       updateData.subjectId,
-      updateData.attemptData
+      updateData.attemptData,
     );
   }
 
@@ -33,7 +43,7 @@ export class PerformanceController {
   @HttpCode(HttpStatus.OK)
   async getUserPerformance(
     @Param('topicId') topicId: string,
-    @Req() req: Request
+    @Req() req: Request,
   ) {
     const userId = req.user?.['sub'];
     if (!userId) {

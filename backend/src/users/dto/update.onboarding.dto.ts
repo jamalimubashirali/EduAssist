@@ -1,7 +1,27 @@
-import { IsArray, IsDateString, IsIn, IsOptional, IsString, IsEnum, IsNumber, Min, Max, IsObject, ValidateNested } from 'class-validator';
+import {
+  IsArray,
+  IsDateString,
+  IsIn,
+  IsOptional,
+  IsString,
+  IsEnum,
+  IsNumber,
+  Min,
+  Max,
+  IsObject,
+  ValidateNested,
+} from 'class-validator';
 import { Type } from 'class-transformer';
 
-const ONBOARDING_STEPS = ['WELCOME', 'PROFILE', 'SUBJECTS', 'GOALS', 'ASSESSMENT', 'ONBOARDING-ASSESSMENT-RESULTS', 'COMPLETION-SUMMARY'];
+const ONBOARDING_STEPS = [
+  'WELCOME',
+  'PROFILE',
+  'SUBJECTS',
+  'GOALS',
+  'ASSESSMENT',
+  'ONBOARDING-ASSESSMENT-RESULTS',
+  'COMPLETION-SUMMARY',
+];
 
 class OnboardingGoalsDto {
   @IsOptional()
@@ -92,13 +112,15 @@ export class UpdateOnboardingDto {
 }
 
 export class UpdateProfileBasicsDto {
-  @IsOptional() @IsString()
+  @IsOptional()
+  @IsString()
   avatar?: string;
 
-  @IsOptional() @IsString()
+  @IsOptional()
+  @IsString()
   theme?: string;
 
-  @IsOptional() @IsArray()
+  @IsOptional()
+  @IsArray()
   goals?: string[];
 }
-

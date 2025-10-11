@@ -1,4 +1,16 @@
-import { Controller, Post, Body, Res, Req, UseGuards, HttpCode, HttpStatus, Logger, UnauthorizedException, Get } from '@nestjs/common';
+import {
+  Controller,
+  Post,
+  Body,
+  Res,
+  Req,
+  UseGuards,
+  HttpCode,
+  HttpStatus,
+  Logger,
+  UnauthorizedException,
+  Get,
+} from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { LoginDto } from './dto/LoginDto';
 import { CreateUserDto } from 'src/users/dto/create.user.dto';
@@ -15,12 +27,18 @@ export class AuthController {
   @Public()
   @Post('register')
   async register(
-    @Res({passthrough : true}) res: Response,
-    @Body() createUserDto: CreateUserDto) : Promise<{message : string , user : any}> {
-    this.logger.log(`👤 Registration attempt for email: ${createUserDto.email}`);
+    @Res({ passthrough: true }) res: Response,
+    @Body() createUserDto: CreateUserDto,
+  ): Promise<{ message: string; user: any }> {
+    this.logger.log(
+      `👤 Registration attempt for email: ${createUserDto.email}`,
+    );
     try {
-      const { tokens, message, user }  = await this.authService.register(createUserDto);
-      this.logger.log(`✅ Registration successful for email: ${createUserDto.email}`);
+      const { tokens, message, user } =
+        await this.authService.register(createUserDto);
+      this.logger.log(
+        `✅ Registration successful for email: ${createUserDto.email}`,
+      );
 
       res.cookie('access_token', tokens.access_token, {
         httpOnly: true,
@@ -38,10 +56,12 @@ export class AuthController {
 
       return {
         message,
-        user 
+        user,
       };
     } catch (error) {
-      this.logger.error(`❌ Registration failed for email: ${createUserDto.email} - ${error.message}`);
+      this.logger.error(
+        `❌ Registration failed for email: ${createUserDto.email} - ${error.message}`,
+      );
       throw error;
     }
   }
@@ -69,10 +89,14 @@ export class AuthController {
         maxAge: 1000 * 60 * 60 * 24 * 7, // 7 days
       });
 
-      this.logger.log(`✅ Login successful for user: ${user.email} (ID: ${user.id})`);
+      this.logger.log(
+        `✅ Login successful for user: ${user.email} (ID: ${user.id})`,
+      );
       return { message, user };
     } catch (error) {
-      this.logger.error(`❌ Login failed for email: ${loginDto.email} - ${error.message}`);
+      this.logger.error(
+        `❌ Login failed for email: ${loginDto.email} - ${error.message}`,
+      );
       throw error;
     }
   }
@@ -87,23 +111,25 @@ export class AuthController {
     if (!userId) {
       throw new UnauthorizedException('No user found to logout');
     }
-    
+
     this.logger.log(`🚪 Logout attempt for user ID: ${userId}`);
     try {
       await this.authService.logout(userId);
-      
+
       res.clearCookie('access_token');
       res.clearCookie('refresh_token');
-      
+
       this.logger.log(`✅ Logout successful for user ID: ${userId}`);
       return { message: 'Logout successful' };
     } catch (error) {
-      this.logger.error(`❌ Logout failed for user ID: ${userId} - ${error.message}`);
+      this.logger.error(
+        `❌ Logout failed for user ID: ${userId} - ${error.message}`,
+      );
       throw error;
     }
   }
 
-  @Public() 
+  @Public()
   @UseGuards(RefreshTokenGuard)
   @Post('refresh')
   @HttpCode(HttpStatus.OK)
@@ -139,9 +165,9 @@ export class AuthController {
       });
 
       this.logger.log(`✅ Token refresh successful`);
-      return { 
+      return {
         message: 'Tokens refreshed successfully',
-        tokens: process.env.NODE_ENV === 'development' ? tokens : undefined
+        tokens: process.env.NODE_ENV === 'development' ? tokens : undefined,
       };
     } catch (error) {
       this.logger.error(`❌ Token refresh failed: ${error.message}`);
@@ -156,7 +182,7 @@ export class AuthController {
     @Req() req: Request,
   ): Promise<{ isAuthenticated: boolean; user?: any; needsRefresh?: boolean }> {
     this.logger.log(`🔍 Auth status check`);
-    
+
     try {
       const accessToken = req.cookies?.access_token;
       const refreshToken = req.cookies?.refresh_token;
@@ -173,8 +199,8 @@ export class AuthController {
           const payload = this.authService.verifyToken(accessToken, 'access');
           const user = await this.authService.getUserById(payload.sub);
           this.logger.log(`✅ Valid access token - authenticated`);
-          return { 
-            isAuthenticated: true, 
+          return {
+            isAuthenticated: true,
             user: {
               id: user._id.toString(),
               email: user.email,
@@ -186,8 +212,11 @@ export class AuthController {
               level: user.level || 1,
               xp_points: user.xp_points || 0,
               leaderboardScore: user.leaderboardScore || 0,
-              onboarding: user.onboarding || { status: 'NOT_STARTED', step: 'WELCOME' }
-            }
+              onboarding: user.onboarding || {
+                status: 'NOT_STARTED',
+                step: 'WELCOME',
+              },
+            },
           };
         } catch (error) {
           this.logger.log(`⚠️ Access token invalid, checking refresh token`);
@@ -198,12 +227,15 @@ export class AuthController {
       if (refreshToken) {
         try {
           const payload = this.authService.verifyToken(refreshToken, 'refresh');
-          const user = await this.authService.getUserByRefreshToken(refreshToken);
-          
+          const user =
+            await this.authService.getUserByRefreshToken(refreshToken);
+
           if (user) {
-            this.logger.log(`✅ Valid refresh token - needs access token refresh`);
-            return { 
-              isAuthenticated: true, 
+            this.logger.log(
+              `✅ Valid refresh token - needs access token refresh`,
+            );
+            return {
+              isAuthenticated: true,
               needsRefresh: true,
               user: {
                 id: user._id.toString(),
@@ -216,8 +248,11 @@ export class AuthController {
                 level: user.level || 1,
                 xp_points: user.xp_points || 0,
                 leaderboardScore: user.leaderboardScore || 0,
-                onboarding: user.onboarding || { status: 'NOT_STARTED', step: 'WELCOME' }
-              }
+                onboarding: user.onboarding || {
+                  status: 'NOT_STARTED',
+                  step: 'WELCOME',
+                },
+              },
             };
           }
         } catch (error) {
@@ -232,5 +267,4 @@ export class AuthController {
       return { isAuthenticated: false };
     }
   }
-
 }

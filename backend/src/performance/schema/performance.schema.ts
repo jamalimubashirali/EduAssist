@@ -36,7 +36,11 @@ export class UserPerformance {
   @Prop({ type: Number, default: 0 })
   averageTimePerQuestion: number; // in seconds
 
-  @Prop({ type: String, enum: Object.values(ProgressTrend), default: ProgressTrend.STEADY })
+  @Prop({
+    type: String,
+    enum: Object.values(ProgressTrend),
+    default: ProgressTrend.STEADY,
+  })
   progressTrend: ProgressTrend;
 
   @Prop({ type: Date, default: null })
@@ -54,9 +58,9 @@ export class UserPerformance {
   // Difficulty-wise performance
   @Prop({ type: Object, default: {} })
   difficultyPerformance: {
-    Easy?: { attempts: number; averageScore: number; };
-    Medium?: { attempts: number; averageScore: number; };
-    Hard?: { attempts: number; averageScore: number; };
+    Easy?: { attempts: number; averageScore: number };
+    Medium?: { attempts: number; averageScore: number };
+    Hard?: { attempts: number; averageScore: number };
   };
 
   // Learning velocity (improvement rate)
@@ -67,7 +71,8 @@ export class UserPerformance {
   lastUpdated: Date;
 }
 
-export const UserPerformanceSchema = SchemaFactory.createForClass(UserPerformance);
+export const UserPerformanceSchema =
+  SchemaFactory.createForClass(UserPerformance);
 
 // Index for efficient queries
 UserPerformanceSchema.index({ userId: 1, topicId: 1 }, { unique: true });

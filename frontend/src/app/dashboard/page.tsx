@@ -35,6 +35,7 @@ import { usePopularSubjects } from "@/hooks/useSubjectData";
 import { useRecommendedQuizzes } from "@/hooks/useQuizData";
 import { quizService } from "@/services/quizService";
 import { GoalProgressWidget } from "@/app/components/dashboard/GoalProgressWidget";
+import { LearningAssistantWidget } from "@/components/learning-assistant/LearningAssistantWidget";
 
 // Real data hooks for dashboard
 
@@ -463,6 +464,20 @@ export default function Dashboard() {
             </div>
           </div>
         </motion.div>
+
+        {/* AI Learning Assistant Widget */}
+        {authUser && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.15 }}
+          >
+            <LearningAssistantWidget 
+              weakTopics={dashboardContent?.weakSubjects?.map((s: any) => s.subject_name) || []}
+              className="max-w-2xl mx-auto"
+            />
+          </motion.div>
+        )}
 
         {/* Preferences Validation */}
         {/* <PreferencesValidation validationStatus={validationStatus} /> */}

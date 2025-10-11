@@ -4,7 +4,10 @@ import { QuizzesController } from './quizzes.controller';
 import { MongooseModule } from '@nestjs/mongoose';
 import { Quiz, QuizSchema } from './schema/quizzes.schema';
 import { Question, QuestionSchema } from '../questions/schema/questions.schema';
-import { UserPerformance, UserPerformanceSchema } from '../performance/schema/performance.schema';
+import {
+  UserPerformance,
+  UserPerformanceSchema,
+} from '../performance/schema/performance.schema';
 import { Attempt, AttemptSchema } from '../attempts/schema/attempts.schema';
 import { User, UserSchema } from '../users/schema/user.schema';
 import { Topic, TopicSchema } from '../topics/schema/topics.schema';
@@ -18,11 +21,11 @@ import { TopicsService } from '../topics/topics.service';
       { name: UserPerformance.name, schema: UserPerformanceSchema },
       { name: Attempt.name, schema: AttemptSchema },
       { name: User.name, schema: UserSchema },
-      { name: Topic.name, schema: TopicSchema }
-    ])
+      { name: Topic.name, schema: TopicSchema },
+    ]),
   ],
   providers: [QuizzesService, TopicsService],
   controllers: [QuizzesController],
-  exports: [QuizzesService]
+  exports: [QuizzesService],
 })
 export class QuizzesModule {}

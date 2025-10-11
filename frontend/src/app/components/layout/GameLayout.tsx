@@ -21,7 +21,8 @@ import {
   Calendar,
   Flame,
   Milestone,
-  Lightbulb
+  Lightbulb,
+  MessageCircle
 } from 'lucide-react'
 import XPBar from '../gamification/XPBar'
 import StreakCounter from '../gamification/StreakCounter'
@@ -36,6 +37,7 @@ const navigation = [
   { name: 'Dashboard', href: '/dashboard', icon: Home },
   { name: 'Subjects', href: '/subjects', icon: BookOpen },
   { name: 'Quiz Arena', href: '/quiz', icon: Brain },
+  { name: 'AI Tutor', href: '/learning-assistant', icon: MessageCircle },
   // { name: 'Daily Challenge', href: '/daily-challenge', icon: Calendar },
   { name: 'Recommendations', href: '/recommendations', icon: Lightbulb },
   { name: 'Progress', href: '/progress', icon: TrendingUp },

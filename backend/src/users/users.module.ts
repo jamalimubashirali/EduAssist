@@ -20,16 +20,16 @@ import { Topic, TopicSchema } from 'src/topics/schema/topics.schema';
       { name: User.name, schema: UserSchema },
       { name: Attempt.name, schema: AttemptSchema },
       { name: Subject.name, schema: SubjectSchema },
-      { name: Topic.name, schema: TopicSchema }
+      { name: Topic.name, schema: TopicSchema },
     ]),
     SubjectsModule,
     QuestionsModule,
     PerformanceModule,
     RecommendationsModule,
-    TopicsModule
+    TopicsModule,
   ],
   controllers: [UsersController],
   providers: [UsersService, SubjectsService, TopicsService],
-  exports: [UsersService]
+  exports: [UsersService],
 })
-export class UsersModule { }
+export class UsersModule {}

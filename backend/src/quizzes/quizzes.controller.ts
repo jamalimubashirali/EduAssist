@@ -1,5 +1,22 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, HttpCode, HttpStatus, Req, Query, BadRequestException } from '@nestjs/common';
-import { QuizzesService, PersonalizedQuizConfig, QuizGenerationResult } from './quizzes.service';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Patch,
+  Param,
+  Delete,
+  HttpCode,
+  HttpStatus,
+  Req,
+  Query,
+  BadRequestException,
+} from '@nestjs/common';
+import {
+  QuizzesService,
+  PersonalizedQuizConfig,
+  QuizGenerationResult,
+} from './quizzes.service';
 import { TopicsService } from '../topics/topics.service';
 import { Request } from 'express';
 import { Public } from 'common/decorators/public_endpoint.decorators';
@@ -9,8 +26,8 @@ import { QuizType } from 'common/enums';
 export class QuizzesController {
   constructor(
     private readonly quizzesService: QuizzesService,
-    private readonly topicsService: TopicsService
-  ) { }
+    private readonly topicsService: TopicsService,
+  ) {}
 
   /**
    * Generate personalized quiz using AI algorithm
@@ -19,7 +36,7 @@ export class QuizzesController {
   @HttpCode(HttpStatus.CREATED)
   async generatePersonalizedQuiz(
     @Body() config: Omit<PersonalizedQuizConfig, 'userId'>,
-    @Req() req: Request
+    @Req() req: Request,
   ): Promise<QuizGenerationResult> {
     try {
       const userId = req.user?.['sub'];
@@ -32,8 +49,14 @@ export class QuizzesController {
         throw new BadRequestException('topicId and subjectId are required');
       }
 
-      if (!config.questionsCount || config.questionsCount < 1 || config.questionsCount > 50) {
-        throw new BadRequestException('questionsCount must be between 1 and 50');
+      if (
+        !config.questionsCount ||
+        config.questionsCount < 1 ||
+        config.questionsCount > 50
+      ) {
+        throw new BadRequestException(
+          'questionsCount must be between 1 and 50',
+        );
       }
 
       const fullConfig: PersonalizedQuizConfig = {
@@ -41,10 +64,11 @@ export class QuizzesController {
         userId,
         questionsCount: config.questionsCount || 10,
         sessionType: config.sessionType || 'practice',
-        timeLimit: config.timeLimit || 30
+        timeLimit: config.timeLimit || 30,
       };
 
-      const result = await this.quizzesService.generatePersonalizedQuiz(fullConfig);
+      const result =
+        await this.quizzesService.generatePersonalizedQuiz(fullConfig);
 
       return result;
     } catch (error) {
@@ -60,7 +84,7 @@ export class QuizzesController {
   @HttpCode(HttpStatus.OK)
   async getOptimalQuizParameters(
     @Param('topicId') topicId: string,
-    @Req() req: Request
+    @Req() req: Request,
   ): Promise<{
     recommendedQuestionCount: number;
     recommendedTimeLimit: number;
@@ -80,7 +104,10 @@ export class QuizzesController {
 
       // This would typically call a separate method in the service
       // For now, we'll return recommended defaults based on user analysis
-      const userAnalysis = await this.quizzesService['analyzeUserPerformance'](userId, topicId);
+      const userAnalysis = await this.quizzesService['analyzeUserPerformance'](
+        userId,
+        topicId,
+      );
 
       let recommendedQuestionCount = 10;
       let recommendedTimeLimit = 30;
@@ -93,7 +120,8 @@ export class QuizzesController {
         recommendedQuestionCount = 15;
         recommendedTimeLimit = 45;
         recommendedDifficulty = 'Easy';
-        recommendationReason = 'Extended practice recommended to build fundamentals';
+        recommendationReason =
+          'Extended practice recommended to build fundamentals';
       } else if (userAnalysis.masteryScore > 80) {
         recommendedQuestionCount = 8;
         recommendedTimeLimit = 20;
@@ -110,8 +138,8 @@ export class QuizzesController {
         userInsights: {
           currentLevel: userAnalysis.currentLevel,
           masteryScore: userAnalysis.masteryScore,
-          recommendationReason
-        }
+          recommendationReason,
+        },
       };
     } catch (error) {
       console.error('Error getting optimal parameters:', error);
@@ -125,13 +153,14 @@ export class QuizzesController {
   @Post('adaptive-session')
   @HttpCode(HttpStatus.CREATED)
   async startAdaptiveSession(
-    @Body() sessionConfig: {
+    @Body()
+    sessionConfig: {
       topicId: string;
       subjectId: string;
       targetDuration: number; // minutes
       difficultyPreference?: 'adaptive' | 'easy' | 'medium' | 'hard';
     },
-    @Req() req: Request
+    @Req() req: Request,
   ): Promise<QuizGenerationResult> {
     try {
       const userId = req.user?.['sub'];
@@ -140,7 +169,10 @@ export class QuizzesController {
       }
 
       // Calculate question count based on target duration
-      const questionsCount = Math.max(5, Math.min(25, Math.floor(sessionConfig.targetDuration / 2)));
+      const questionsCount = Math.max(
+        5,
+        Math.min(25, Math.floor(sessionConfig.targetDuration / 2)),
+      );
 
       const config: PersonalizedQuizConfig = {
         userId,
@@ -148,7 +180,7 @@ export class QuizzesController {
         subjectId: sessionConfig.subjectId,
         questionsCount,
         sessionType: 'adaptive',
-        timeLimit: sessionConfig.targetDuration
+        timeLimit: sessionConfig.targetDuration,
       };
 
       return await this.quizzesService.generatePersonalizedQuiz(config);
@@ -166,7 +198,7 @@ export class QuizzesController {
   async getQuizHistory(
     @Param('topicId') topicId: string,
     @Query('limit') limit: string = '10',
-    @Req() req: Request
+    @Req() req: Request,
   ): Promise<{
     quizzes: any[];
     analytics: {
@@ -192,14 +224,14 @@ export class QuizzesController {
           averageScore: 0,
           improvementTrend: 'Steady',
           strongestDifficulty: 'Medium',
-          weakestDifficulty: 'Hard'
-        }
+          weakestDifficulty: 'Hard',
+        },
       };
     } catch (error) {
       console.error('Error getting quiz history:', error);
       throw new BadRequestException('Failed to get quiz history');
     }
-  }  /**
+  } /**
    * Get quizzes by subject
    */
   @Public()
@@ -207,7 +239,7 @@ export class QuizzesController {
   @HttpCode(HttpStatus.OK)
   async getQuizzesBySubject(
     @Param('subjectId') subjectId: string,
-    @Query('limit') limit: string = '10'
+    @Query('limit') limit: string = '10',
   ): Promise<any[]> {
     try {
       if (!subjectId) {
@@ -217,7 +249,10 @@ export class QuizzesController {
       const limitNumber = parseInt(limit, 10) || 10;
 
       // Call service method to get quizzes by subject
-      const quizzes = await this.quizzesService.getQuizzesBySubject(subjectId, limitNumber);
+      const quizzes = await this.quizzesService.getQuizzesBySubject(
+        subjectId,
+        limitNumber,
+      );
 
       return quizzes;
     } catch (error) {
@@ -236,7 +271,7 @@ export class QuizzesController {
     @Query('subject') subject?: string,
     @Query('difficulty') difficulty?: string,
     @Query('limit') limit: string = '10',
-    @Query('offset') offset: string = '0'
+    @Query('offset') offset: string = '0',
   ): Promise<any[]> {
     try {
       const limitNumber = parseInt(limit, 10) || 10;
@@ -249,13 +284,17 @@ export class QuizzesController {
       let filteredQuizzes = quizzes;
       if (subject) {
         // Filter by subject - this would need to be implemented based on your schema
-        filteredQuizzes = filteredQuizzes.filter(quiz =>
-          quiz.topicId && typeof quiz.topicId === 'object' &&
-          'subjectId' in quiz.topicId
+        filteredQuizzes = filteredQuizzes.filter(
+          (quiz) =>
+            quiz.topicId &&
+            typeof quiz.topicId === 'object' &&
+            'subjectId' in quiz.topicId,
         );
       }
       if (difficulty) {
-        filteredQuizzes = filteredQuizzes.filter(quiz => quiz.quizDifficulty === difficulty);
+        filteredQuizzes = filteredQuizzes.filter(
+          (quiz) => quiz.quizDifficulty === difficulty,
+        );
       }
 
       // Apply pagination
@@ -267,44 +306,54 @@ export class QuizzesController {
       console.error('Error getting quizzes:', error);
       throw new BadRequestException('Failed to get quizzes');
     }
-  }  /**
+  } /**
    * Generate quiz (simple generation endpoint)
    */
   @Public()
   @Post('generate')
   @HttpCode(HttpStatus.CREATED)
   async generateQuiz(
-    @Body() request: {
+    @Body()
+    request: {
       subject: string;
       difficulty: string;
       questionCount: number;
       topics?: string[];
-    }
+    },
   ): Promise<any> {
     try {
       // Validate input
       if (!request.subject || !request.difficulty || !request.questionCount) {
-        throw new BadRequestException('Subject, difficulty, and questionCount are required');
+        throw new BadRequestException(
+          'Subject, difficulty, and questionCount are required',
+        );
       }
 
       if (request.questionCount < 1 || request.questionCount > 50) {
-        throw new BadRequestException('Question count must be between 1 and 50');
+        throw new BadRequestException(
+          'Question count must be between 1 and 50',
+        );
       }
 
       const validDifficulties = ['easy', 'medium', 'hard'];
       if (!validDifficulties.includes(request.difficulty.toLowerCase())) {
-        throw new BadRequestException('Difficulty must be easy, medium, or hard');
+        throw new BadRequestException(
+          'Difficulty must be easy, medium, or hard',
+        );
       }
 
       // Try to get real questions from the database
-      console.log(`Generating quiz for subject: ${request.subject}, difficulty: ${request.difficulty}, count: ${request.questionCount}`);
-
-      const realQuestions = await this.quizzesService.getQuestionsBySubjectAndDifficulty(
-        request.subject,
-        request.difficulty,
-        request.questionCount,
-        request.topics
+      console.log(
+        `Generating quiz for subject: ${request.subject}, difficulty: ${request.difficulty}, count: ${request.questionCount}`,
       );
+
+      const realQuestions =
+        await this.quizzesService.getQuestionsBySubjectAndDifficulty(
+          request.subject,
+          request.difficulty,
+          request.questionCount,
+          request.topics,
+        );
 
       let questions: any[] = [];
 
@@ -315,15 +364,25 @@ export class QuizzesController {
           text: q.questionText,
           options: q.answerOptions,
           correctAnswer: parseInt(q.correctAnswer),
-          explanation: q.explanation || `This is the correct answer for question ${index + 1}.`,
-          xpValue: this.calculateQuestionXP(q.questionDifficulty)
+          explanation:
+            q.explanation ||
+            `This is the correct answer for question ${index + 1}.`,
+          xpValue: this.calculateQuestionXP(q.questionDifficulty),
         }));
 
-        console.log(`Found ${realQuestions.length} real questions from database`);
+        console.log(
+          `Found ${realQuestions.length} real questions from database`,
+        );
       } else {
         // Fallback to sample questions if no real questions found
-        console.log('No real questions found, using sample questions as fallback');
-        questions = this.generateSampleQuestions(request.subject, request.difficulty, request.questionCount);
+        console.log(
+          'No real questions found, using sample questions as fallback',
+        );
+        questions = this.generateSampleQuestions(
+          request.subject,
+          request.difficulty,
+          request.questionCount,
+        );
       }
 
       // Return the quiz object directly (not wrapped in success/quiz structure)
@@ -335,14 +394,17 @@ export class QuizzesController {
         timeLimit: request.questionCount * 2, // 2 minutes per question
         questionCount: request.questionCount,
         questions,
-        xpReward: this.calculateXpReward(request.difficulty, request.questionCount),
+        xpReward: this.calculateXpReward(
+          request.difficulty,
+          request.questionCount,
+        ),
         metadata: {
           generatedAt: new Date().toISOString(),
           type: realQuestions.length > 0 ? 'database' : 'generated',
           topics: request.topics || [],
           questionsFromDatabase: realQuestions.length,
-          totalQuestionsRequested: request.questionCount
-        }
+          totalQuestionsRequested: request.questionCount,
+        },
       };
     } catch (error) {
       console.error('Error generating quiz:', error);
@@ -361,21 +423,20 @@ export class QuizzesController {
         return 10;
     }
   }
-  private generateSampleQuestions(subject: string, difficulty: string, count: number): any[] {
+  private generateSampleQuestions(
+    subject: string,
+    difficulty: string,
+    count: number,
+  ): any[] {
     const questions: any[] = [];
     for (let i = 0; i < count; i++) {
       questions.push({
         id: `q_${Date.now()}_${i}`,
         text: `Sample ${subject} question ${i + 1} (${difficulty} level)`,
-        options: [
-          'Option A',
-          'Option B',
-          'Option C',
-          'Option D'
-        ],
+        options: ['Option A', 'Option B', 'Option C', 'Option D'],
         correctAnswer: Math.floor(Math.random() * 4),
         explanation: `This is a sample explanation for question ${i + 1}.`,
-        xpValue: difficulty === 'easy' ? 10 : difficulty === 'medium' ? 20 : 30
+        xpValue: difficulty === 'easy' ? 10 : difficulty === 'medium' ? 20 : 30,
       });
     }
     return questions;
@@ -384,12 +445,12 @@ export class QuizzesController {
   private calculateXpReward(difficulty: string, questionCount: number): number {
     const baseXp = 10;
     const difficultyMultiplier = {
-      'Easy': 1.0,
-      'Medium': 1.5,
-      'Hard': 2.0,
-      'easy': 1.0,
-      'medium': 1.5,
-      'hard': 2.0
+      Easy: 1.0,
+      Medium: 1.5,
+      Hard: 2.0,
+      easy: 1.0,
+      medium: 1.5,
+      hard: 2.0,
     };
 
     const multiplier = difficultyMultiplier[difficulty] || 1.0;
@@ -402,7 +463,9 @@ export class QuizzesController {
   @Public()
   @Get('popular')
   @HttpCode(HttpStatus.OK)
-  async getPopularQuizzes(@Query('limit') limit: string = '10'): Promise<any[]> {
+  async getPopularQuizzes(
+    @Query('limit') limit: string = '10',
+  ): Promise<any[]> {
     try {
       const limitNumber = parseInt(limit, 10) || 10;
 
@@ -425,7 +488,7 @@ export class QuizzesController {
     @Query('q') query: string,
     @Query('subject') subject?: string,
     @Query('difficulty') difficulty?: string,
-    @Query('limit') limit: string = '10'
+    @Query('limit') limit: string = '10',
   ): Promise<any[]> {
     try {
       if (!query || query.trim().length === 0) {
@@ -436,19 +499,22 @@ export class QuizzesController {
 
       // Get all quizzes and filter by search query
       const allQuizzes = await this.quizzesService.findAll();
-      const filteredQuizzes = allQuizzes.filter(quiz =>
-        quiz.title && quiz.title.toLowerCase().includes(query.toLowerCase())
+      const filteredQuizzes = allQuizzes.filter(
+        (quiz) =>
+          quiz.title && quiz.title.toLowerCase().includes(query.toLowerCase()),
       );
 
       // Apply additional filters
       let finalQuizzes = filteredQuizzes;
       if (subject) {
-        finalQuizzes = finalQuizzes.filter(quiz =>
-          quiz.topicId && typeof quiz.topicId === 'object'
+        finalQuizzes = finalQuizzes.filter(
+          (quiz) => quiz.topicId && typeof quiz.topicId === 'object',
         );
       }
       if (difficulty) {
-        finalQuizzes = finalQuizzes.filter(quiz => quiz.quizDifficulty === difficulty);
+        finalQuizzes = finalQuizzes.filter(
+          (quiz) => quiz.quizDifficulty === difficulty,
+        );
       }
 
       return finalQuizzes.slice(0, limitNumber);
@@ -492,7 +558,7 @@ export class QuizzesController {
   @HttpCode(HttpStatus.OK)
   async getRecommendedQuizzes(
     @Param('userId') userId: string,
-    @Query('limit') limit: string = '10'
+    @Query('limit') limit: string = '10',
   ): Promise<any[]> {
     try {
       if (!userId) {
@@ -500,27 +566,45 @@ export class QuizzesController {
       }
 
       const limitNumber = parseInt(limit, 10) || 10;
-      console.log(`🎯 [QUIZ-REC] Getting intelligent quiz recommendations for user: ${userId}, limit: ${limitNumber}`);
+      console.log(
+        `🎯 [QUIZ-REC] Getting intelligent quiz recommendations for user: ${userId}, limit: ${limitNumber}`,
+      );
 
       // Step 1: Get user's smart recommendations from the recommendation service
-      const smartRecommendations = await this.quizzesService.getSmartQuizRecommendationsForUser(userId, limitNumber);
+      const smartRecommendations =
+        await this.quizzesService.getSmartQuizRecommendationsForUser(
+          userId,
+          limitNumber,
+        );
 
       if (smartRecommendations && smartRecommendations.length > 0) {
-        console.log(`✅ [QUIZ-REC] Found ${smartRecommendations.length} smart recommendations`);
+        console.log(
+          `✅ [QUIZ-REC] Found ${smartRecommendations.length} smart recommendations`,
+        );
         return this.formatQuizzesForFrontend(smartRecommendations);
       }
 
-      console.log(`⚠️ [QUIZ-REC] No smart recommendations found, falling back to performance-based selection`);
+      console.log(
+        `⚠️ [QUIZ-REC] No smart recommendations found, falling back to performance-based selection`,
+      );
 
       // Step 2: Fallback - Get user performance data and generate recommendations
-      const userPerformanceData = await this.quizzesService.getUserPerformanceBasedRecommendations(userId, limitNumber);
+      const userPerformanceData =
+        await this.quizzesService.getUserPerformanceBasedRecommendations(
+          userId,
+          limitNumber,
+        );
 
       if (userPerformanceData && userPerformanceData.length > 0) {
-        console.log(`✅ [QUIZ-REC] Found ${userPerformanceData.length} performance-based recommendations`);
+        console.log(
+          `✅ [QUIZ-REC] Found ${userPerformanceData.length} performance-based recommendations`,
+        );
         return this.formatQuizzesForFrontend(userPerformanceData);
       }
 
-      console.log(`⚠️ [QUIZ-REC] No performance data available, using intelligent fallback`);
+      console.log(
+        `⚠️ [QUIZ-REC] No performance data available, using intelligent fallback`,
+      );
 
       // Step 3: Final fallback - Get diverse quizzes across subjects with preference for variety
       const allQuizzes = await this.quizzesService.findAll();
@@ -532,7 +616,9 @@ export class QuizzesController {
 
       // Intelligent fallback: prioritize variety across subjects and difficulties
       const diverseQuizzes = this.selectDiverseQuizzes(allQuizzes, limitNumber);
-      console.log(`✅ [QUIZ-REC] Selected ${diverseQuizzes.length} diverse quizzes as fallback`);
+      console.log(
+        `✅ [QUIZ-REC] Selected ${diverseQuizzes.length} diverse quizzes as fallback`,
+      );
 
       return this.formatQuizzesForFrontend(diverseQuizzes);
     } catch (error) {
@@ -548,7 +634,7 @@ export class QuizzesController {
     // Group quizzes by subject and difficulty
     const quizGroups: { [key: string]: any[] } = {};
 
-    allQuizzes.forEach(quiz => {
+    allQuizzes.forEach((quiz) => {
       const subjectId = quiz.topicId?.subjectId || quiz.subjectId || 'unknown';
       const difficulty = quiz.quizDifficulty || 'Medium';
       const key = `${subjectId}-${difficulty}`;
@@ -565,14 +651,22 @@ export class QuizzesController {
 
     // Round-robin selection to ensure variety
     let currentIndex = 0;
-    while (selectedQuizzes.length < limit && currentIndex < groupKeys.length * 3) {
+    while (
+      selectedQuizzes.length < limit &&
+      currentIndex < groupKeys.length * 3
+    ) {
       const groupKey = groupKeys[currentIndex % groupKeys.length];
       const group = quizGroups[groupKey];
 
       if (group && group.length > 0) {
         // Remove and add quiz to avoid duplicates
         const quiz = group.shift();
-        if (quiz && !selectedQuizzes.find(q => q._id?.toString() === quiz._id?.toString())) {
+        if (
+          quiz &&
+          !selectedQuizzes.find(
+            (q) => q._id?.toString() === quiz._id?.toString(),
+          )
+        ) {
           selectedQuizzes.push(quiz);
         }
       }
@@ -583,7 +677,12 @@ export class QuizzesController {
     // If we still need more quizzes, add remaining ones
     if (selectedQuizzes.length < limit) {
       const remainingQuizzes = allQuizzes
-        .filter(quiz => !selectedQuizzes.find(q => q._id?.toString() === quiz._id?.toString()))
+        .filter(
+          (quiz) =>
+            !selectedQuizzes.find(
+              (q) => q._id?.toString() === quiz._id?.toString(),
+            ),
+        )
         .slice(0, limit - selectedQuizzes.length);
 
       selectedQuizzes.push(...remainingQuizzes);
@@ -596,30 +695,38 @@ export class QuizzesController {
    * Format quizzes for frontend consumption
    */
   private formatQuizzesForFrontend(quizzes: any[]): any[] {
-    return quizzes.map(quiz => {
+    return quizzes.map((quiz) => {
       // Handle both direct quiz objects and recommendation objects with quiz data
-      const quizData = quiz._id ? quiz : (quiz.quiz || quiz);
+      const quizData = quiz._id ? quiz : quiz.quiz || quiz;
 
       return {
         id: quizData._id?.toString() || quizData.id,
         title: quizData.title || 'Practice Quiz',
-        subjectId: quizData.subjectId?.toString() || quiz.metadata?.subjectId || '',
+        subjectId:
+          quizData.subjectId?.toString() || quiz.metadata?.subjectId || '',
         topicId: quizData.topicId?.toString() || quiz.metadata?.topicId || '',
         questions: quizData.questions || quizData.questionIds || [],
         timeLimit: quizData.timeLimit || 30,
-        difficulty: this.mapDifficultyToFrontend(quizData.quizDifficulty || quizData.difficulty || 'MEDIUM'),
+        difficulty: this.mapDifficultyToFrontend(
+          quizData.quizDifficulty || quizData.difficulty || 'MEDIUM',
+        ),
         type: 'standard',
         createdAt: quizData.createdAt || new Date().toISOString(),
-        xpReward: quizData.xpReward || this.calculateXpReward(quizData.quizDifficulty || 'MEDIUM', 10),
-        description: quiz.recommendationReason || quizData.description || 'Practice quiz to improve your skills',
+        xpReward:
+          quizData.xpReward ||
+          this.calculateXpReward(quizData.quizDifficulty || 'MEDIUM', 10),
+        description:
+          quiz.recommendationReason ||
+          quizData.description ||
+          'Practice quiz to improve your skills',
         completions: quizData.attemptCount || 0,
         rating: 4.5, // Default rating
         // Add recommendation metadata if available
         ...(quiz.metadata && {
           recommendationReason: quiz.recommendationReason,
           priority: quiz.priority,
-          source: quiz.metadata.source
-        })
+          source: quiz.metadata.source,
+        }),
       };
     });
   }
@@ -629,12 +736,12 @@ export class QuizzesController {
    */
   private mapDifficultyToFrontend(backendDifficulty: string): string {
     const mapping = {
-      'EASY': 'Easy',
-      'MEDIUM': 'Medium',
-      'HARD': 'Hard',
-      'Easy': 'Easy',
-      'Medium': 'Medium',
-      'Hard': 'Hard'
+      EASY: 'Easy',
+      MEDIUM: 'Medium',
+      HARD: 'Hard',
+      Easy: 'Easy',
+      Medium: 'Medium',
+      Hard: 'Hard',
     };
     return mapping[backendDifficulty] || 'Medium';
   }
@@ -644,13 +751,14 @@ export class QuizzesController {
   @Post('topic-practice')
   @HttpCode(HttpStatus.OK)
   async getOrCreateTopicQuiz(
-    @Body() request: {
+    @Body()
+    request: {
       topicId: string;
       subjectId: string;
       difficulty?: 'beginner' | 'intermediate' | 'advanced';
       questionCount?: number;
     },
-    @Req() req: Request
+    @Req() req: Request,
   ): Promise<any> {
     try {
       const userId = req.user?.['sub'];
@@ -664,16 +772,28 @@ export class QuizzesController {
 
       // Step 1: Get user's suggested difficulty if not provided
       let suggestedDifficulty = request.difficulty;
-      console.log(`🎲 [DIFFICULTY] Initial difficulty from request: ${suggestedDifficulty}`);
+      console.log(
+        `🎲 [DIFFICULTY] Initial difficulty from request: ${suggestedDifficulty}`,
+      );
 
       if (!suggestedDifficulty) {
-        console.log('🔍 [ANALYSIS] No difficulty provided, analyzing user performance...');
+        console.log(
+          '🔍 [ANALYSIS] No difficulty provided, analyzing user performance...',
+        );
         try {
-          const userAnalysis = await this.quizzesService.analyzeUserPerformance(userId, request.topicId);
-          suggestedDifficulty = userAnalysis.recommendedDifficulty || 'intermediate';
-          console.log(`📊 [ANALYSIS] Suggested difficulty for user: ${suggestedDifficulty}`);
+          const userAnalysis = await this.quizzesService.analyzeUserPerformance(
+            userId,
+            request.topicId,
+          );
+          suggestedDifficulty =
+            userAnalysis.recommendedDifficulty || 'intermediate';
+          console.log(
+            `📊 [ANALYSIS] Suggested difficulty for user: ${suggestedDifficulty}`,
+          );
         } catch (error) {
-          console.log('⚠️ [ANALYSIS] Could not analyze user performance, defaulting to intermediate');
+          console.log(
+            '⚠️ [ANALYSIS] Could not analyze user performance, defaulting to intermediate',
+          );
           suggestedDifficulty = 'intermediate';
         }
       }
@@ -696,24 +816,40 @@ export class QuizzesController {
       };
 
       const backendDifficulty = mapDifficultyToBackend(suggestedDifficulty);
-      console.log(`🔄 [MAPPING] Frontend difficulty '${suggestedDifficulty}' mapped to backend '${backendDifficulty}'`);
+      console.log(
+        `🔄 [MAPPING] Frontend difficulty '${suggestedDifficulty}' mapped to backend '${backendDifficulty}'`,
+      );
 
       // Step 1.5: Check if any questions exist for this topic
       console.log('🔍 [VALIDATION] Checking if questions exist for topic...');
-      const availableQuestionCount = await this.quizzesService.countQuestionsForTopic(request.topicId);
-      console.log(`📊 [VALIDATION] Found ${availableQuestionCount} total questions for topic ${request.topicId}`);
+      const availableQuestionCount =
+        await this.quizzesService.countQuestionsForTopic(request.topicId);
+      console.log(
+        `📊 [VALIDATION] Found ${availableQuestionCount} total questions for topic ${request.topicId}`,
+      );
 
       // Debug: Let's see what questions actually exist for this topic
-      const sampleQuestions = await this.quizzesService.getSampleQuestionsForTopic(request.topicId, 5);
-      console.log(`🔍 [DEBUG] Sample questions for topic ${request.topicId}:`, sampleQuestions.map(q => ({
-        id: q._id,
-        difficulty: q.questionDifficulty,
-        text: q.questionText?.substring(0, 50) + '...'
-      })));
+      const sampleQuestions =
+        await this.quizzesService.getSampleQuestionsForTopic(
+          request.topicId,
+          5,
+        );
+      console.log(
+        `🔍 [DEBUG] Sample questions for topic ${request.topicId}:`,
+        sampleQuestions.map((q) => ({
+          id: q._id,
+          difficulty: q.questionDifficulty,
+          text: q.questionText?.substring(0, 50) + '...',
+        })),
+      );
 
       if (availableQuestionCount === 0) {
-        console.error(`❌ [VALIDATION] No questions available for topic ${request.topicId}`);
-        throw new BadRequestException(`No questions available for this topic. Please try a different topic or contact support to add questions.`);
+        console.error(
+          `❌ [VALIDATION] No questions available for topic ${request.topicId}`,
+        );
+        throw new BadRequestException(
+          `No questions available for this topic. Please try a different topic or contact support to add questions.`,
+        );
       }
 
       // Step 2: Check if suitable quiz already exists for this topic and difficulty
@@ -721,12 +857,14 @@ export class QuizzesController {
       const existingQuiz = await this.quizzesService.findTopicQuiz(
         request.topicId,
         request.subjectId,
-        backendDifficulty
+        backendDifficulty,
       );
 
       if (existingQuiz) {
         console.log(`✅ [EXISTING] Found existing quiz: ${existingQuiz._id}`);
-        console.log(`📊 [EXISTING] Quiz details: Questions=${existingQuiz.questions?.length || 0}, Difficulty=${existingQuiz.quizDifficulty}`);
+        console.log(
+          `📊 [EXISTING] Quiz details: Questions=${existingQuiz.questions?.length || 0}, Difficulty=${existingQuiz.quizDifficulty}`,
+        );
         return {
           id: existingQuiz._id.toString(),
           title: existingQuiz.title,
@@ -734,82 +872,119 @@ export class QuizzesController {
           topicId: existingQuiz.topicId,
           difficulty: existingQuiz.quizDifficulty,
           timeLimit: existingQuiz.timeLimit,
-          questionCount: existingQuiz.questions?.length || request.questionCount || 10,
+          questionCount:
+            existingQuiz.questions?.length || request.questionCount || 10,
           questions: existingQuiz.questions,
           xpReward: existingQuiz.xpReward,
           metadata: {
             type: 'existing',
             suggestedDifficulty,
-            fromDatabase: true
-          }
+            fromDatabase: true,
+          },
         };
       }
 
-      console.log('❌ [EXISTING] No existing quiz found, will generate new one');
+      console.log(
+        '❌ [EXISTING] No existing quiz found, will generate new one',
+      );
 
       // Step 3: Use simple question selection (same as working generate endpoint)
-      console.log('🏗️ [GENERATION] Using simple question selection approach...');
+      console.log(
+        '🏗️ [GENERATION] Using simple question selection approach...',
+      );
       const requestedQuestionCount = request.questionCount || 10;
 
       let selectedQuestions;
       try {
-        selectedQuestions = await this.quizzesService.getQuestionsForTopicSimple(
-          request.topicId,
-          suggestedDifficulty,
-          requestedQuestionCount
+        selectedQuestions =
+          await this.quizzesService.getQuestionsForTopicSimple(
+            request.topicId,
+            suggestedDifficulty,
+            requestedQuestionCount,
+          );
+        console.log(
+          `📊 [GENERATION] Simple selection result: ${selectedQuestions.length} questions found`,
         );
-        console.log(`📊 [GENERATION] Simple selection result: ${selectedQuestions.length} questions found`);
       } catch (error) {
-        console.error('❌ [GENERATION] Error in getQuestionsForTopicSimple:', error);
-        throw new BadRequestException(`Failed to get questions for topic: ${error.message}`);
+        console.error(
+          '❌ [GENERATION] Error in getQuestionsForTopicSimple:',
+          error,
+        );
+        throw new BadRequestException(
+          `Failed to get questions for topic: ${error.message}`,
+        );
       }
 
       // Fallback: if no questions for specific topic, try getting from entire subject
       if (!selectedQuestions || selectedQuestions.length === 0) {
-        console.log('🔄 [FALLBACK] No questions for topic, trying entire subject...');
+        console.log(
+          '🔄 [FALLBACK] No questions for topic, trying entire subject...',
+        );
         try {
-          selectedQuestions = await this.quizzesService.getQuestionsBySubjectAndDifficulty(
-            request.subjectId,
-            suggestedDifficulty,
-            requestedQuestionCount
+          selectedQuestions =
+            await this.quizzesService.getQuestionsBySubjectAndDifficulty(
+              request.subjectId,
+              suggestedDifficulty,
+              requestedQuestionCount,
+            );
+          console.log(
+            `📊 [FALLBACK] Subject-wide selection result: ${selectedQuestions.length} questions found`,
           );
-          console.log(`📊 [FALLBACK] Subject-wide selection result: ${selectedQuestions.length} questions found`);
         } catch (error) {
-          console.error('❌ [FALLBACK] Error in getQuestionsBySubjectAndDifficulty:', error);
-          throw new BadRequestException(`Failed to get questions for subject: ${error.message}`);
+          console.error(
+            '❌ [FALLBACK] Error in getQuestionsBySubjectAndDifficulty:',
+            error,
+          );
+          throw new BadRequestException(
+            `Failed to get questions for subject: ${error.message}`,
+          );
         }
       }
 
       if (!selectedQuestions || selectedQuestions.length === 0) {
-        console.error('❌ [GENERATION] No questions found even with subject fallback');
-        throw new BadRequestException(`No questions available for this subject and difficulty. Please try a different topic or contact support.`);
+        console.error(
+          '❌ [GENERATION] No questions found even with subject fallback',
+        );
+        throw new BadRequestException(
+          `No questions available for this subject and difficulty. Please try a different topic or contact support.`,
+        );
       }
 
       // Step 4: Create quiz directly without complex personalization
       console.log('💾 [SAVE] Creating quiz with selected questions...');
-      const xpReward = this.calculateXpReward(backendDifficulty, selectedQuestions.length);
-      console.log(`🏆 [SAVE] Calculated XP reward: ${xpReward} for difficulty ${backendDifficulty} and ${selectedQuestions.length} questions`);
+      const xpReward = this.calculateXpReward(
+        backendDifficulty,
+        selectedQuestions.length,
+      );
+      console.log(
+        `🏆 [SAVE] Calculated XP reward: ${xpReward} for difficulty ${backendDifficulty} and ${selectedQuestions.length} questions`,
+      );
 
       const createQuizDto = {
         title: `Practice Quiz - Topic ${request.topicId}`,
         topicId: request.topicId,
-        questionIds: selectedQuestions.map(q => q._id.toString()),
+        questionIds: selectedQuestions.map((q) => q._id.toString()),
         quizDifficulty: backendDifficulty as any,
         quizType: QuizType.PRACTICE,
         description: `Practice quiz for topic`,
         timeLimit: requestedQuestionCount * 2,
         xpReward,
-        isActive: true
+        isActive: true,
       };
 
-      console.log('🔧 [SAVE] CreateQuizDto:', JSON.stringify(createQuizDto, null, 2));
+      console.log(
+        '🔧 [SAVE] CreateQuizDto:',
+        JSON.stringify(createQuizDto, null, 2),
+      );
 
       let savedQuiz;
       try {
         savedQuiz = await this.quizzesService.create(createQuizDto);
       } catch (error) {
         console.error('❌ [SAVE] Error creating quiz:', error);
-        throw new BadRequestException(`Failed to create quiz: ${error.message}`);
+        throw new BadRequestException(
+          `Failed to create quiz: ${error.message}`,
+        );
       }
 
       if (!savedQuiz) {
@@ -817,7 +992,9 @@ export class QuizzesController {
         throw new BadRequestException('Failed to create quiz');
       }
 
-      console.log(`✅ [SAVE] Quiz created successfully with ID: ${savedQuiz._id}`);
+      console.log(
+        `✅ [SAVE] Quiz created successfully with ID: ${savedQuiz._id}`,
+      );
 
       const response = {
         id: savedQuiz._id.toString(),
@@ -831,15 +1008,15 @@ export class QuizzesController {
         timeLimit: savedQuiz.timeLimit,
         questionCount: selectedQuestions.length,
         questions: selectedQuestions, // This should be the array of question objects
-        questionIds: selectedQuestions.map(q => q._id), // Also provide questionIds for compatibility
+        questionIds: selectedQuestions.map((q) => q._id), // Also provide questionIds for compatibility
         xpReward: savedQuiz.xpReward,
         createdAt: new Date().toISOString(),
         metadata: {
           type: 'simple_generation',
           suggestedDifficulty,
           fromDatabase: true,
-          questionsFound: selectedQuestions.length
-        }
+          questionsFound: selectedQuestions.length,
+        },
       };
 
       console.log('📤 [RESPONSE] Final response structure:', {
@@ -848,22 +1025,31 @@ export class QuizzesController {
         questionCount: response.questionCount,
         questionsLength: response.questions?.length || 0,
         difficulty: response.difficulty,
-        xpReward: response.xpReward
+        xpReward: response.xpReward,
       });
 
-      console.log('📤 [RESPONSE] Sending response:', JSON.stringify({
-        id: response.id,
-        title: response.title,
-        questionCount: response.questionCount,
-        difficulty: response.difficulty,
-        xpReward: response.xpReward
-      }, null, 2));
+      console.log(
+        '📤 [RESPONSE] Sending response:',
+        JSON.stringify(
+          {
+            id: response.id,
+            title: response.title,
+            questionCount: response.questionCount,
+            difficulty: response.difficulty,
+            xpReward: response.xpReward,
+          },
+          null,
+          2,
+        ),
+      );
 
       return response;
-
     } catch (error) {
       console.error('❌ [ERROR] Error in topic practice:', error);
-      console.error('📋 [ERROR] Request details:', JSON.stringify(request, null, 2));
+      console.error(
+        '📋 [ERROR] Request details:',
+        JSON.stringify(request, null, 2),
+      );
       throw new BadRequestException('Failed to get or create topic quiz');
     }
   }
@@ -873,7 +1059,9 @@ export class QuizzesController {
    */
   @Get('topics-with-questions/:subjectId')
   @HttpCode(HttpStatus.OK)
-  async getTopicsWithQuestions(@Param('subjectId') subjectId: string): Promise<any> {
+  async getTopicsWithQuestions(
+    @Param('subjectId') subjectId: string,
+  ): Promise<any> {
     try {
       return await this.quizzesService.getTopicsWithQuestions(subjectId);
     } catch (error) {
@@ -894,7 +1082,9 @@ export class QuizzesController {
       if (id.startsWith('generated_')) {
         // For generated quizzes, we need to regenerate them or return an error
         // Since generated quizzes are temporary, we'll return a helpful message
-        throw new BadRequestException('Generated quizzes are temporary and cannot be retrieved by ID. Please generate a new quiz.');
+        throw new BadRequestException(
+          'Generated quizzes are temporary and cannot be retrieved by ID. Please generate a new quiz.',
+        );
       }
 
       return await this.quizzesService.findById(id);
@@ -916,11 +1106,17 @@ export class QuizzesController {
   @HttpCode(HttpStatus.CREATED)
   async generateAssessment(
     @Body() body: { user_id: string; selected_subjects: string[] },
-    @Req() req: Request
+    @Req() req: Request,
   ): Promise<{ questions: any[] }> {
     try {
-      if (!body.user_id || !body.selected_subjects || body.selected_subjects.length === 0) {
-        throw new BadRequestException('user_id and selected_subjects are required');
+      if (
+        !body.user_id ||
+        !body.selected_subjects ||
+        body.selected_subjects.length === 0
+      ) {
+        throw new BadRequestException(
+          'user_id and selected_subjects are required',
+        );
       }
 
       console.log('Assessment request received:', {
@@ -930,30 +1126,46 @@ export class QuizzesController {
 
       // Use optimized aggregation pipeline with timeout handling
       const questions: any = await Promise.race([
-        this.quizzesService.generateAssessmentWithAggregation(body.selected_subjects, 15),
+        this.quizzesService.generateAssessmentWithAggregation(
+          body.selected_subjects,
+          15,
+        ),
         new Promise((_, reject) =>
-          setTimeout(() => reject(new Error('Assessment generation timeout')), 25000)
-        )
+          setTimeout(
+            () => reject(new Error('Assessment generation timeout')),
+            25000,
+          ),
+        ),
       ]);
 
-      console.log('Total questions generated for assessment:', questions.length);
+      console.log(
+        'Total questions generated for assessment:',
+        questions.length,
+      );
 
       if (questions.length === 0) {
-        throw new BadRequestException('No questions could be generated for the selected subjects');
+        throw new BadRequestException(
+          'No questions could be generated for the selected subjects',
+        );
       }
 
       // Randomly shuffle and select final questions
       const shuffledQuestions = questions.sort(() => Math.random() - 0.5);
       const finalQuestions = shuffledQuestions.slice(0, 15);
 
-      console.log('Returning final assessment questions:', finalQuestions.length);
+      console.log(
+        'Returning final assessment questions:',
+        finalQuestions.length,
+      );
       return {
-        questions: finalQuestions
+        questions: finalQuestions,
       };
     } catch (error) {
       console.error('Error generating assessment:', error);
       if (error.message.includes('timeout')) {
-        throw new BadRequestException('Assessment generation is taking too long. Please try again.');
+        throw new BadRequestException(
+          'Assessment generation is taking too long. Please try again.',
+        );
       }
       throw error;
     }
