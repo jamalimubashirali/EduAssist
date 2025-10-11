@@ -13,10 +13,10 @@ export function FollowUpQuestions({ questions, onQuestionClick }: FollowUpQuesti
   if (questions.length === 0) return null;
 
   return (
-    <Card className="p-4 mb-4 bg-green-50 border-green-200">
+    <Card className="p-4 mb-4 bg-gradient-to-r from-green-900/30 to-emerald-900/30 border-green-700/50 backdrop-blur-sm">
       <div className="flex items-center gap-2 mb-3">
-        <HelpCircle className="w-4 h-4 text-green-600" />
-        <h3 className="text-sm font-medium text-green-900">
+        <HelpCircle className="w-4 h-4 text-green-400" />
+        <h3 className="text-sm font-medium text-green-200 font-primary">
           Follow-up Questions
         </h3>
       </div>
@@ -27,7 +27,7 @@ export function FollowUpQuestions({ questions, onQuestionClick }: FollowUpQuesti
             key={index}
             variant="ghost"
             size="sm"
-            className="w-full justify-start text-left h-auto p-2 text-green-800 hover:bg-green-100"
+            className="w-full justify-start text-left h-auto p-2 text-green-200 hover:bg-green-800/30 hover:text-green-100 font-secondary"
             onClick={() => onQuestionClick(question)}
           >
             {question}

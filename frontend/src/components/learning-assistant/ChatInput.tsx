@@ -37,7 +37,7 @@ export function ChatInput({
   };
 
   return (
-    <form onSubmit={handleSubmit} className="flex gap-2 p-4 border-t bg-white">
+    <form onSubmit={handleSubmit} className="flex gap-2 p-4 border-t border-gray-700 bg-gray-800/50 backdrop-blur-sm">
       <div className="flex-1">
         <Textarea
           value={message}
@@ -45,7 +45,7 @@ export function ChatInput({
           onKeyDown={handleKeyDown}
           placeholder={placeholder}
           disabled={disabled || isLoading}
-          className="min-h-[44px] max-h-32 resize-none"
+          className="min-h-[44px] max-h-32 resize-none bg-gray-700/50 border-gray-600 text-white placeholder:text-gray-400 focus:border-purple-500 focus:ring-purple-500/20 font-secondary"
           rows={1}
         />
       </div>
@@ -54,7 +54,7 @@ export function ChatInput({
         type="submit"
         disabled={!message.trim() || isLoading || disabled}
         size="sm"
-        className="self-end"
+        className="self-end bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white border-0"
       >
         {isLoading ? (
           <Loader2 className="w-4 h-4 animate-spin" />

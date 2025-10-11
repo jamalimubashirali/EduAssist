@@ -75,7 +75,7 @@ export function LearningAssistantChat() {
   };
 
   return (
-    <div className="flex h-screen bg-gray-100">
+    <div className="flex h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900">
       {/* Sidebar */}
       <SessionSidebar
         sessions={sessions}
@@ -88,16 +88,16 @@ export function LearningAssistantChat() {
       {/* Main Chat Area */}
       <div className="flex-1 flex flex-col">
         {/* Header */}
-        <div className="bg-white border-b px-6 py-4">
+        <div className="bg-gray-800/50 backdrop-blur-sm border-b border-gray-700 px-6 py-4">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center">
-              <Bot className="w-5 h-5 text-blue-600" />
+            <div className="w-10 h-10 rounded-full bg-gradient-to-r from-purple-500 to-blue-500 flex items-center justify-center">
+              <Bot className="w-5 h-5 text-white" />
             </div>
             <div>
-              <h1 className="text-lg font-semibold text-gray-900">
+              <h1 className="text-lg font-semibold text-white font-primary">
                 AI Learning Assistant
               </h1>
-              <p className="text-sm text-gray-500">
+              <p className="text-sm text-gray-300 font-secondary">
                 Get personalized help based on your performance
               </p>
             </div>
@@ -126,16 +126,16 @@ export function LearningAssistantChat() {
         )}
 
         {/* Messages Area */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-4">
+        <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-gray-900/30">
           {messages.length === 0 && !isTyping ? (
             <div className="flex flex-col items-center justify-center h-full text-center">
-              <div className="w-16 h-16 rounded-full bg-blue-100 flex items-center justify-center mb-4">
-                <Bot className="w-8 h-8 text-blue-600" />
+              <div className="w-16 h-16 rounded-full bg-gradient-to-r from-purple-500 to-blue-500 flex items-center justify-center mb-4">
+                <Bot className="w-8 h-8 text-white" />
               </div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">
+              <h3 className="text-lg font-semibold text-white mb-2 font-primary">
                 Welcome to your AI Learning Assistant!
               </h3>
-              <p className="text-gray-600 mb-6 max-w-md">
+              <p className="text-gray-300 mb-6 max-w-md font-secondary">
                 I'm here to help you understand topics you're struggling with. 
                 Ask me anything about your studies, and I'll provide personalized explanations 
                 based on your performance data.
@@ -144,28 +144,28 @@ export function LearningAssistantChat() {
                 <Button
                   variant="outline"
                   onClick={() => handleSendMessage("What are my weak areas?")}
-                  className="text-left"
+                  className="text-left bg-gray-800/50 border-gray-600 text-white hover:bg-gray-700/50 hover:border-gray-500"
                 >
                   What are my weak areas?
                 </Button>
                 <Button
                   variant="outline"
                   onClick={() => handleSendMessage("Help me with algebra")}
-                  className="text-left"
+                  className="text-left bg-gray-800/50 border-gray-600 text-white hover:bg-gray-700/50 hover:border-gray-500"
                 >
                   Help me with algebra
                 </Button>
                 <Button
                   variant="outline"
                   onClick={() => handleSendMessage("Explain linear equations")}
-                  className="text-left"
+                  className="text-left bg-gray-800/50 border-gray-600 text-white hover:bg-gray-700/50 hover:border-gray-500"
                 >
                   Explain linear equations
                 </Button>
                 <Button
                   variant="outline"
                   onClick={() => handleSendMessage("Give me practice problems")}
-                  className="text-left"
+                  className="text-left bg-gray-800/50 border-gray-600 text-white hover:bg-gray-700/50 hover:border-gray-500"
                 >
                   Give me practice problems
                 </Button>

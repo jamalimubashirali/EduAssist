@@ -13,10 +13,10 @@ export function SuggestedTopics({ topics, onTopicClick }: SuggestedTopicsProps) 
   if (topics.length === 0) return null;
 
   return (
-    <Card className="p-4 mb-4 bg-blue-50 border-blue-200">
+    <Card className="p-4 mb-4 bg-gradient-to-r from-blue-900/30 to-purple-900/30 border-blue-700/50 backdrop-blur-sm">
       <div className="flex items-center gap-2 mb-3">
-        <BookOpen className="w-4 h-4 text-blue-600" />
-        <h3 className="text-sm font-medium text-blue-900">
+        <BookOpen className="w-4 h-4 text-blue-400" />
+        <h3 className="text-sm font-medium text-blue-200 font-primary">
           Suggested Topics to Study
         </h3>
       </div>
@@ -26,7 +26,7 @@ export function SuggestedTopics({ topics, onTopicClick }: SuggestedTopicsProps) 
           <Badge
             key={index}
             variant="secondary"
-            className="cursor-pointer hover:bg-blue-200 transition-colors"
+            className="cursor-pointer bg-gray-700/80 text-gray-200 hover:bg-gray-600/80 transition-colors border-gray-600 font-secondary"
             onClick={() => onTopicClick(topic)}
           >
             {topic}

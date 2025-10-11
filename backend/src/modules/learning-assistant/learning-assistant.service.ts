@@ -73,12 +73,12 @@ export class LearningAssistantService {
       // Identify weak and strong topics
       const weakTopics = performances
         .filter((p) => p.averageScore < this.WEAK_TOPIC_THRESHOLD)
-        .map((p) => (p.topicId as any)?.name || 'Unknown Topic')
+        .map((p) => (p.topicId as any)?.topicName || 'Unknown Topic')
         .slice(0, 5); // Top 5 weak topics
 
       const strongTopics = performances
         .filter((p) => p.averageScore >= 80)
-        .map((p) => (p.topicId as any)?.name || 'Unknown Topic')
+        .map((p) => (p.topicId as any)?.topicName || 'Unknown Topic')
         .slice(0, 3); // Top 3 strong topics
 
       // Calculate overall average
@@ -88,7 +88,7 @@ export class LearningAssistantService {
 
       // Get recent performance trends
       const recentPerformance = performances.slice(0, 5).map((p) => ({
-        topicName: (p.topicId as any)?.name || 'Unknown Topic',
+        topicName: (p.topicId as any)?.topicName || 'Unknown Topic',
         score: p.averageScore,
         trend: p.progressTrend || 'steady',
       }));
@@ -175,17 +175,26 @@ export class LearningAssistantService {
 
   private getFallbackResponse(message: string, context: LearningContext): ChatResponse {
     // Provide a helpful fallback response when Azure OpenAI is not available
-    let reply = "I'm here to help you with your studies! ";
+    let reply = "## Welcome to your AI Learning Assistant! 🎓\n\n";
+    reply += "I'm here to help you with your studies! ";
 
     if (context.weakTopics.length > 0) {
-      reply += `I notice you might need help with: ${context.weakTopics.slice(0, 3).join(', ')}. `;
+      reply += "\n\n### Your Areas for Improvement:\n";
+      context.weakTopics.slice(0, 3).forEach((topic, index) => {
+        reply += `${index + 1}. **${topic}**\n`;
+      });
+      reply += "\n";
     }
 
     if (message.toLowerCase().includes('help') || message.toLowerCase().includes('explain')) {
-      reply += "I'd be happy to explain concepts step by step. ";
+      reply += "I'd be happy to explain concepts **step by step**. ";
     }
 
-    reply += "Please note: The AI service is currently being configured. You can still browse your performance data and recommendations in other sections of the app.";
+    reply += "\n\n> **Note:** The AI service is currently being configured. You can still browse your performance data and recommendations in other sections of the app.\n\n";
+    reply += "### What would you like to explore?\n";
+    reply += "- Review your **weak areas** for focused study\n";
+    reply += "- Get **practice problems** for specific topics\n";
+    reply += "- Learn **study strategies** for better retention";
 
     return {
       reply,
@@ -231,7 +240,12 @@ TUTORING GUIDELINES:
 8. Always end with a follow-up question to encourage engagement
 
 RESPONSE FORMAT:
-Provide helpful explanations and always suggest related topics or follow-up questions to deepen understanding.`;
+- Use **bold text** for important concepts and key terms
+- Use numbered lists (1. 2. 3.) for step-by-step explanations
+- Use bullet points (-) for listing related concepts or examples
+- Use headings (## Topic Name) to organize longer responses
+- Provide helpful explanations and always suggest related topics or follow-up questions to deepen understanding
+- Format your response using markdown for better readability`;
 
     return prompt;
   }

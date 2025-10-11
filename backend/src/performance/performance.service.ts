@@ -116,8 +116,8 @@ export class PerformanceService {
   async getUserTopicPerformances(userId: string): Promise<UserPerformance[]> {
     return await this.performanceModel
       .find({ userId: new Types.ObjectId(userId) })
-      .populate('topicId', 'name')
-      .populate('subjectId', 'name')
+      .populate('topicId', 'topicName')
+      .populate('subjectId', 'subjectName')
       .sort({ lastUpdated: -1 })
       .exec();
   }
