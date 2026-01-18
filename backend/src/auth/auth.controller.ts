@@ -13,7 +13,7 @@ import {
 } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { LoginDto } from './dto/LoginDto';
-import { CreateUserDto } from 'src/users/dto/create.user.dto';
+import { CreateUserDto } from '../users/dto/create.user.dto';
 import { Request, Response } from 'express';
 import { RefreshTokenGuard } from 'common/guards/refresh-token.guard';
 import { Public } from 'common/decorators/public_endpoint.decorators';
@@ -22,7 +22,7 @@ import { Public } from 'common/decorators/public_endpoint.decorators';
 export class AuthController {
   private readonly logger = new Logger(AuthController.name);
 
-  constructor(private readonly authService: AuthService) {}
+  constructor(private readonly authService: AuthService) { }
 
   @Public()
   @Post('register')
@@ -226,9 +226,7 @@ export class AuthController {
       // If access token is invalid/missing, check refresh token
       if (refreshToken) {
         try {
-          const payload = this.authService.verifyToken(refreshToken, 'refresh');
-          const user =
-            await this.authService.getUserByRefreshToken(refreshToken);
+          const user = await this.authService.validateRefreshToken(refreshToken);
 
           if (user) {
             this.logger.log(

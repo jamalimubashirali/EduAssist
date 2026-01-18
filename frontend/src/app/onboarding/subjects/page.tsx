@@ -22,18 +22,6 @@ interface Subject {
   icon: string
 }
 
-const SUBJECT_CATEGORIES = [
-  'All',
-  'Mathematics',
-  'Science', 
-  'Language Arts',
-  'Social Studies',
-  'Computer Science',
-  'Arts',
-  'Health & PE',
-  'Other'
-]
-
 // Helper functions for mapping
 const getCategoryFromName = (name: string): string => {
   const lowerName = name.toLowerCase()

@@ -40,17 +40,17 @@ export class LoggerMiddleware implements NestMiddleware {
     res.end = function (chunk?: any) {
       const duration = Date.now() - startTime;
       const { statusCode, statusMessage } = res;
-        // Determine log level based on status code (304 Not Modified is normal)
-      const logLevel = statusCode >= 400 ? 'error' : 
-                      (statusCode >= 300 && statusCode !== 304) ? 'warn' : 'log';
-      
+      // Determine log level based on status code (304 Not Modified is normal)
+      const logLevel = statusCode >= 400 ? 'error' :
+        (statusCode >= 300 && statusCode !== 304) ? 'warn' : 'log';
+
       // Create status emoji
-      const statusEmoji = statusCode >= 500 ? '🔴' : 
-                          statusCode >= 400 ? '🟠' : 
-                          statusCode >= 300 ? '🟡' : '🟢';      // Log response
+      const statusEmoji = statusCode >= 500 ? '🔴' :
+        statusCode >= 400 ? '🟠' :
+          statusCode >= 300 ? '🟡' : '🟢';      // Log response
       const statusMsg = statusMessage || (statusCode === 304 ? 'Not Modified' : '');
       const logMessage = `${statusEmoji} RESPONSE: ${method} ${originalUrl} - Status: ${statusCode} ${statusMsg} - Duration: ${duration}ms`;
-      
+
       if (logLevel === 'error') {
         logger.error(logMessage);
       } else if (logLevel === 'warn') {
@@ -84,7 +84,7 @@ export class LoggerMiddleware implements NestMiddleware {
     if (!body || typeof body !== 'object') return body;
 
     const sanitized = { ...body };
-    const sensitiveFields = ['password', 'token', 'refreshToken', 'access_token', 'refresh_token'];
+    const sensitiveFields = ['password', 'token', 'hashedRefreshToken', 'refreshToken', 'access_token', 'refresh_token'];
 
     for (const field of sensitiveFields) {
       if (sanitized[field]) {
@@ -100,7 +100,7 @@ export class LoggerMiddleware implements NestMiddleware {
 
     try {
       const parsed = typeof body === 'string' ? JSON.parse(body) : body;
-      
+
       if (typeof parsed !== 'object') return parsed;
 
       const sanitized = { ...parsed };

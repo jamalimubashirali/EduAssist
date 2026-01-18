@@ -3,10 +3,22 @@ import { PerformanceService } from './performance.service';
 
 describe('PerformanceService', () => {
   let service: PerformanceService;
+  let mockPerformanceService: any;
 
   beforeEach(async () => {
+    mockPerformanceService = {
+      getUserPerformance: jest.fn(),
+      updatePerformance: jest.fn(),
+      getPerformanceAnalytics: jest.fn(),
+    };
+
     const module: TestingModule = await Test.createTestingModule({
-      providers: [PerformanceService],
+      providers: [
+        {
+          provide: PerformanceService,
+          useValue: mockPerformanceService,
+        },
+      ],
     }).compile();
 
     service = module.get<PerformanceService>(PerformanceService);

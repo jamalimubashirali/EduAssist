@@ -1483,9 +1483,7 @@ export default function QuizResultsPage() {
 
         {/* Enhanced Goal Progress & Weak Area Improvements */}
         <AnimatePresence>
-          {currentStep >= 3 && (
-            <GoalProgressSection userId={user?.id} />
-          )}
+          {currentStep >= 3 && <GoalProgressSection userId={user?.id} />}
         </AnimatePresence>
 
         {/* Enhanced Recommendations */}

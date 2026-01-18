@@ -3,10 +3,24 @@ import { TopicsService } from './topics.service';
 
 describe('TopicsService', () => {
   let service: TopicsService;
+  let mockTopicsService: any;
 
   beforeEach(async () => {
+    mockTopicsService = {
+      findAll: jest.fn(),
+      findById: jest.fn(),
+      create: jest.fn(),
+      update: jest.fn(),
+      remove: jest.fn(),
+    };
+
     const module: TestingModule = await Test.createTestingModule({
-      providers: [TopicsService],
+      providers: [
+        {
+          provide: TopicsService,
+          useValue: mockTopicsService,
+        },
+      ],
     }).compile();
 
     service = module.get<TopicsService>(TopicsService);

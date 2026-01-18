@@ -36,7 +36,7 @@ export class User {
   password: string;
 
   @Prop({ type: String, default: null })
-  token: string | null;
+  hashedRefreshToken: string | null;
 
   @Prop({ type: [SchemaTypes.ObjectId], ref: 'Subject', default: [] })
   preferences: Types.ObjectId[];

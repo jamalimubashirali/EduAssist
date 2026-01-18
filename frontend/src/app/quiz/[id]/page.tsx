@@ -24,43 +24,11 @@ export default function QuizTakingPage() {
   const { trackQuizPerformance } = usePerformanceTracker()
   const [isSubmitting, setIsSubmitting] = useState(false)
 
-  // Consolidated debug logging and user check
   useEffect(() => {
     // User authentication check
     if (!user) {
       router.push('/login')
       return
-    }
-
-    // Debug logging for quiz data
-    console.log('🎯 [QUIZ PAGE] Quiz ID:', quizId)
-    console.log('🔄 [QUIZ PAGE] Loading state:', isLoading)
-    console.log('❌ [QUIZ PAGE] Error state:', error)
-    console.log('📊 [QUIZ PAGE] Quiz data:', quiz)
-
-    if (quiz) {
-      console.log('📝 [QUIZ PAGE] Quiz details:')
-      console.log('  - Title:', quiz.title)
-      console.log('  - Questions count:', quiz.questions?.length || 0)
-      console.log('  - Time limit:', quiz.timeLimit)
-      console.log('  - Difficulty:', quiz.difficulty)
-      console.log('  - XP Reward:', quiz.xpReward)
-      console.log('📋 [QUIZ PAGE] Questions array:', quiz.questions)
-
-      if (quiz.questions && quiz.questions.length > 0) {
-        console.log('🔍 [QUIZ PAGE] First question sample:', quiz.questions[0])
-        quiz.questions.forEach((q, index) => {
-          console.log(`📝 [QUIZ PAGE] Question ${index + 1}:`, {
-            id: q.id,
-            text: q.questionText?.substring(0, 50) + '...',
-            optionsCount: q.answerOptions?.length || 0,
-            correctAnswer: q.correctAnswer,
-            difficulty: q.questionDifficulty
-          })
-        })
-      } else {
-        console.warn('⚠️ [QUIZ PAGE] No questions found in quiz data!')
-      }
     }
   }, [user, router, isLoading, error]);
 

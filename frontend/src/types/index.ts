@@ -158,6 +158,7 @@ export interface Question {
   explanation?: string;
   questionDifficulty: 'Easy' | 'Medium' | 'Hard';
   subject: {
+    [x: string]: string;
     _id: string;
     subjectName: string;
   };

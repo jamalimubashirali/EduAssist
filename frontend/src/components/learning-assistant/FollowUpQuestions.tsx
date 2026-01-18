@@ -29,6 +29,7 @@ export function FollowUpQuestions({ questions, onQuestionClick }: FollowUpQuesti
             size="sm"
             className="w-full justify-start text-left h-auto p-2 text-green-200 hover:bg-green-800/30 hover:text-green-100 font-secondary"
             onClick={() => onQuestionClick(question)}
+            data-testid="follow-up-question"
           >
             {question}
           </Button>

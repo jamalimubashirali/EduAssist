@@ -7,6 +7,7 @@ import { UpdateUserDto } from './dto/update.user.dto';
 import { QuestionsService } from '../questions/questions.service';
 import { PerformanceService } from '../performance/performance.service';
 import { RecommendationsService } from '../recommendations/recommendations.service';
+import bcrypt from "bcrypt";
 
 @Injectable()
 export class UsersService {
@@ -15,7 +16,7 @@ export class UsersService {
     private readonly questionsService: QuestionsService,
     private readonly performanceService: PerformanceService,
     private readonly recommendationsService: RecommendationsService,
-  ) {}
+  ) { }
 
   async findAll(): Promise<User[]> {
     return await this.userModel.find().exec();
@@ -24,17 +25,17 @@ export class UsersService {
   async findById(id: string): Promise<User> {
     const user = await this.userModel
       .findById(new Types.ObjectId(id))
-      .select('-password -token');
+      .select('-password -hashedRefreshToken');
     if (!user) {
       throw new NotFoundException('User not found');
     }
     return user;
   }
 
-  async findByRefreshToken(token: string): Promise<User | null> {
-    const user = await this.userModel.findOne({ token }).select('-password');
+  async findByIdWithToken(id: string): Promise<User> {
+    const user = await this.userModel.findById(new Types.ObjectId(id));
     if (!user) {
-      throw new NotFoundException('User not found with the provided token');
+      throw new NotFoundException('User not found');
     }
     return user;
   }
@@ -84,7 +85,7 @@ export class UsersService {
 
     const updatedUser = await this.userModel
       .findByIdAndUpdate(new Types.ObjectId(id), updateUserDto, { new: true })
-      .select('-password -token')
+      .select('-password -hashedRefreshToken')
       .exec();
 
     if (!updatedUser) {
@@ -111,10 +112,15 @@ export class UsersService {
       throw new NotFoundException('Invalid user ID format');
     }
 
+    const tokenHash = await bcrypt.hash(
+      refreshToken,
+      parseInt(process.env.SALT_ROUNDS || '10'),
+    );
+
     const updatedUser = await this.userModel
       .findByIdAndUpdate(
         new Types.ObjectId(userId),
-        { token: refreshToken }, // Direct field update, bypassing DTO
+        { hashedRefreshToken: tokenHash }, // Direct field update, bypassing DTO
         { new: true },
       )
       .exec();
@@ -163,7 +169,7 @@ export class UsersService {
         { $set: updates },
         { new: true },
       )
-      .select('-password -token');
+      .select('-password -hashedRefreshToken');
 
     if (!updated) throw new NotFoundException('User not found');
     return updated;
@@ -180,7 +186,7 @@ export class UsersService {
         { $set: updates },
         { new: true },
       )
-      .select('-password -token');
+      .select('-password -hashedRefreshToken');
     if (!updated) throw new NotFoundException('User not found');
     return updated;
   }
@@ -438,8 +444,8 @@ export class UsersService {
                 accuracy:
                   performance.total > 0
                     ? Math.round(
-                        (performance.correct / performance.total) * 100,
-                      )
+                      (performance.correct / performance.total) * 100,
+                    )
                     : 0,
                 questions_answered: performance.total,
                 correct_answers: performance.correct,
@@ -464,15 +470,15 @@ export class UsersService {
         study_plan: [
           ...(weakSubjects.length > 0
             ? [
-                `Focus on ${weakSubjects.map((s) => s.subject_name).join(', ')} - your areas needing improvement`,
-              ]
+              `Focus on ${weakSubjects.map((s) => s.subject_name).join(', ')} - your areas needing improvement`,
+            ]
             : []),
           'Practice daily with recommended questions',
           'Review weak topics regularly',
           ...(strongSubjects.length > 0
             ? [
-                `Build on your strengths in ${strongSubjects.map((s) => s.subject_name).join(', ')}`,
-              ]
+              `Build on your strengths in ${strongSubjects.map((s) => s.subject_name).join(', ')}`,
+            ]
             : []),
           'Maintain consistent study schedule',
         ],
@@ -536,7 +542,7 @@ export class UsersService {
         assessment_duration: Math.floor(
           (new Date(body.completed_at).getTime() -
             new Date(body.started_at).getTime()) /
-            1000,
+          1000,
         ),
         question_details: questionDetails,
       };
@@ -1909,27 +1915,27 @@ export class UsersService {
       recommended_next_steps: [
         ...(weakSubjects.length > 0
           ? [
-              `Prioritize ${weakSubjects.map((s) => s.subject_name).join(', ')} - focus on fundamentals`,
-              `Review weak topics: ${weakSubjects
-                .flatMap((s) => s.weak_topics)
-                .slice(0, 3)
-                .join(', ')}`,
-              'Complete practice quizzes in weak areas',
-            ]
+            `Prioritize ${weakSubjects.map((s) => s.subject_name).join(', ')} - focus on fundamentals`,
+            `Review weak topics: ${weakSubjects
+              .flatMap((s) => s.weak_topics)
+              .slice(0, 3)
+              .join(', ')}`,
+            'Complete practice quizzes in weak areas',
+          ]
           : []),
         ...(averageSubjects.length > 0
           ? [
-              `Continue building skills in ${averageSubjects.map((s) => s.subject_name).join(', ')}`,
-            ]
+            `Continue building skills in ${averageSubjects.map((s) => s.subject_name).join(', ')}`,
+          ]
           : []),
         ...(strongSubjects.length > 0
           ? [
-              `Maintain excellence in ${strongSubjects.map((s) => s.subject_name).join(', ')}`,
-              `Advanced practice in: ${strongSubjects
-                .flatMap((s) => s.strong_topics)
-                .slice(0, 3)
-                .join(', ')}`,
-            ]
+            `Maintain excellence in ${strongSubjects.map((s) => s.subject_name).join(', ')}`,
+            `Advanced practice in: ${strongSubjects
+              .flatMap((s) => s.strong_topics)
+              .slice(0, 3)
+              .join(', ')}`,
+          ]
           : []),
         'Track progress with regular assessments',
       ],
@@ -2005,10 +2011,10 @@ export class UsersService {
       time_management_issues:
         slowQuestions.length > 0
           ? [
-              'Some questions took longer than average',
-              'Consider time management strategies',
-              'Practice with timed quizzes',
-            ]
+            'Some questions took longer than average',
+            'Consider time management strategies',
+            'Practice with timed quizzes',
+          ]
           : ['Good time management demonstrated', 'Maintain current pacing'],
       recommended_practice_time: Math.max(
         15,

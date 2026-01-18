@@ -3,21 +3,23 @@ import {
   Injectable,
   InternalServerErrorException,
   UnauthorizedException,
+  Logger,
 } from '@nestjs/common';
-import { UsersService } from 'src/users/users.service';
+import { UsersService } from '../users/users.service';
 import { JwtService } from '@nestjs/jwt';
-import { CreateUserDto } from 'src/users/dto/create.user.dto';
-import { User, OnboardingStatus } from 'src/users/schema/user.schema';
+import { CreateUserDto } from '../users/dto/create.user.dto';
+import { User, OnboardingStatus } from '../users/schema/user.schema';
 import { TokenData, Tokens } from '../../common/types';
 import { LoginDto } from './dto/LoginDto';
 import * as bcrypt from 'bcrypt';
 
 @Injectable()
 export class AuthService {
+  private readonly logger = new Logger(AuthService.name);
   constructor(
     private usersService: UsersService,
     private jwtService: JwtService,
-  ) {}
+  ) { }
   async register(
     createUserDto: CreateUserDto,
   ): Promise<{ message: string; user: any; tokens: Tokens }> {
@@ -191,10 +193,46 @@ export class AuthService {
     return essentialData;
   }
 
-  async refreshTokens(refreshToken: string): Promise<Tokens> {
-    const user = await this.usersService.findByRefreshToken(refreshToken);
+  async validateRefreshToken(refreshToken: string): Promise<any> {
+    try {
+      const payload = this.verifyToken(refreshToken, 'refresh');
+      if (!payload || !payload.sub) {
+        return null;
+      }
 
-    if (!user) {
+      const user = await this.usersService.findByIdWithToken(payload.sub);
+      if (!user || !user.hashedRefreshToken) {
+        this.logger.warn(`User ${payload.sub} not found or has no refresh token`);
+        return null;
+      }
+
+      const isMatch = await bcrypt.compare(refreshToken, user.hashedRefreshToken);
+      if (!isMatch) {
+        this.logger.warn(`Invalid refresh token for user ${payload.sub}`);
+        return null;
+      }
+
+      return user;
+    } catch (error) {
+      this.logger.error(`Error validating refresh token: ${error.message}`, error.stack);
+      return null;
+    }
+  }
+
+  async refreshTokens(refreshToken: string): Promise<Tokens> {
+    const decoded = this.jwtService.decode(refreshToken);
+    if (!decoded || typeof decoded === 'string' || !decoded.sub) {
+      throw new UnauthorizedException('Invalid Refresh Token');
+    }
+
+    const user = await this.usersService.findByIdWithToken(decoded.sub);
+
+    if (!user || !user.hashedRefreshToken) {
+      throw new UnauthorizedException('Invalid Refresh Token');
+    }
+
+    const isMatch = await bcrypt.compare(refreshToken, user.hashedRefreshToken);
+    if (!isMatch) {
       throw new UnauthorizedException('Invalid Refresh Token');
     }
 
@@ -224,7 +262,5 @@ export class AuthService {
     return await this.usersService.findById(userId);
   }
 
-  async getUserByRefreshToken(refreshToken: string): Promise<any> {
-    return await this.usersService.findByRefreshToken(refreshToken);
-  }
+
 }

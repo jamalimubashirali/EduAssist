@@ -34,7 +34,7 @@ async function bootstrap() {
     app.enableCors({
       origin: [
         process.env.FRONTEND_URL || 'http://localhost:3000',
-        'http://localhost:3001', // Additional port for Next.js dev server
+        process.env.FRONTEND_FALLBACK_URL ||  'http://localhost:3000'
       ],
       credentials: true,
       methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'],
@@ -63,7 +63,7 @@ async function bootstrap() {
     logger.log(`📚 API Documentation: http://localhost:${port}/api/v1`);
     logger.log(`🔒 Environment: ${process.env.NODE_ENV || 'development'}`);
     logger.log(
-      `🌐 CORS enabled for: ${process.env.FRONTEND_URL || 'http://localhost:3000'}`,
+      `🌐 CORS enabled for: ${process.env.FRONTEND_URL ? process.env.FRONTNED_URL : process.env.FRONTNED_FALLBACK_URL }`,
     );
 
     // Graceful shutdown handlers
